@@ -1,5 +1,3 @@
-scalar DateTime
-
 type HealthStatus {
     status: String!
     timestamp: DateTime!

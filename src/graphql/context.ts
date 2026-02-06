@@ -1,15 +1,14 @@
 import { GraphQLError } from 'graphql';
 import { Request } from 'express';
+import { TokenData } from '../utils/jwt.ts';
+import { Loaders } from './loaders/user.loader.ts';
 
-export interface TokenData {
-    userId: number;
-    email: string;
-    is_admin?: boolean;
-}
+export type { TokenData };
 
 export interface GraphQLContext {
     req: Request;
     user: TokenData | null;
+    loaders: Loaders;
 }
 
 export function requireAuth(context: GraphQLContext): TokenData {
@@ -25,7 +24,7 @@ export function requireAdmin(context: GraphQLContext): TokenData {
     const user = requireAuth(context);
     if (!user.is_admin) {
         throw new GraphQLError('Admin access required', {
-            extensions: { code: 'FORBIDDEN', statusCode: 403, errorCode: 20007 },
+            extensions: { code: 'FORBIDDEN', statusCode: 403, errorCode: 20006 },
         });
     }
     return user;

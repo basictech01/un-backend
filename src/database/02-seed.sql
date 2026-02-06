@@ -7,10 +7,10 @@
 -- Password for all: "password123" (hashed)
 -- =====================================================
 INSERT INTO users (name, email, password_hash, bio, profession, role, is_active) VALUES
-('Admin User', 'admin@uttrakhand.com', '$2b$10$rZ5YKCCxKGHX5zKGx1YqHu5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K', 'Platform administrator', 'Administrator', 'admin', TRUE),
-('Rajesh Kumar', 'rajesh@uttrakhand.com', '$2b$10$rZ5YKCCxKGHX5zKGx1YqHu5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K', 'Senior journalist covering Uttarakhand news', 'Journalist', 'author', TRUE),
-('Priya Sharma', 'priya@uttrakhand.com', '$2b$10$rZ5YKCCxKGHX5zKGx1YqHu5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K', 'Environmental reporter', 'Reporter', 'author', TRUE),
-('Amit Singh', 'amit@uttrakhand.com', '$2b$10$rZ5YKCCxKGHX5zKGx1YqHu5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K5K', 'Political correspondent', 'Correspondent', 'author', TRUE);
+('Admin User', 'admin@uttrakhand.com', '$2b$10$hfUrQD2IYmHiuDe.3uy.v.FMaDyO.JgwqqVN5ngLDvsgyFCoocFk6', 'Platform administrator', 'Administrator', 'admin', TRUE),
+('Rajesh Kumar', 'rajesh@uttrakhand.com', '$2b$10$hfUrQD2IYmHiuDe.3uy.v.FMaDyO.JgwqqVN5ngLDvsgyFCoocFk6', 'Senior journalist covering Uttarakhand news', 'Journalist', 'author', TRUE),
+('Priya Sharma', 'priya@uttrakhand.com', '$2b$10$hfUrQD2IYmHiuDe.3uy.v.FMaDyO.JgwqqVN5ngLDvsgyFCoocFk6', 'Environmental reporter', 'Reporter', 'author', TRUE),
+('Amit Singh', 'amit@uttrakhand.com', '$2b$10$hfUrQD2IYmHiuDe.3uy.v.FMaDyO.JgwqqVN5ngLDvsgyFCoocFk6', 'Political correspondent', 'Correspondent', 'author', TRUE);
 
 -- =====================================================
 -- Sample Articles

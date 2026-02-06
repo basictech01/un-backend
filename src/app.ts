@@ -12,6 +12,8 @@ import { buildGraphQL } from './graphql/loaders/graphql.loader.ts';
 import { notFoundHandler, errorHandler } from './middleware/error.middleware.ts';
 import helmet from 'helmet';
 import createLogger from './utils/logger.ts';
+import { optionalAuth } from './middleware/auth.middleware.ts';
+import { createLoaders } from './graphql/loaders/user.loader.ts';
 
 const logger = createLogger('@app');
 
@@ -72,8 +74,9 @@ async function startServer() {
     app.use(
         "/graphql",
         express.json(),
+        optionalAuth,
         expressMiddleware(apollo, {
-            context: async ({ req }) => ({ req, user: req.user ?? null }),
+            context: async ({ req }) => ({ req, user: req.user ?? null, loaders: createLoaders() }),
         })
     );
 
