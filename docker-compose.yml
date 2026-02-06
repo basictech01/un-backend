@@ -1,0 +1,60 @@
+services:
+  mysql_un:
+    image: mysql:8.4
+    container_name: un-mysql-db
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: uttrakhand_next
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3307:3306"
+    volumes:
+      - un_db_data:/var/lib/mysql
+      - ./src/database/01-tables.sql:/docker-entrypoint-initdb.d/01-tables.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$${MYSQL_USER}", "-p$${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  un_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uttrakhand-next-backend
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    depends_on:
+      mysql_un:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./.env
+    environment:
+      NODE_NO_WARNINGS: "1"
+      # Override DB host/port/name for container environment
+      DB_HOST: mysql_un
+      DB_PORT: 3306
+      DB_NAME: uttrakhand_next
+      DB_USER: user
+      DB_PASSWORD: password
+    volumes:
+      - ./src:/app/src
+      - ./logs:/app/logs
+    command: ["npm", "run", "dev"]
+
+volumes:
+  un_db_data:
