@@ -18,6 +18,7 @@ services:
     volumes:
       - un_db_data:/var/lib/mysql
       - ./src/database/01-tables.sql:/docker-entrypoint-initdb.d/01-tables.sql
+      - ./src/database/02-seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u$${MYSQL_USER}", "-p$${MYSQL_PASSWORD}"]
       interval: 10s
