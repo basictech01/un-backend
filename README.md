@@ -86,16 +86,7 @@ npm run dev
 ```
 ---
 ## 🤝 Contributing
-
-We welcome contributions! Please follow these guidelines:
-
-### Code Standards
-
-- ✅ Use TypeScript strict mode
-- ✅ Follow Prettier formatting rules
-- ✅ Write descriptive commit messages
-- ✅ Add comments for complex logic
-- ✅ Use `import type` for TypeScript type-only imports
+ welcome contributions! Please follow these guidelines:
 
 ### Contribution Workflow
 
@@ -143,27 +134,9 @@ docker exec -it un-mysql-db mysql -u user -ppassword uttrakhand_next
 docker compose restart uttrakhand-next-backend
 ```
 
----
-
-## 📚 Future Enhancements
-
-- [ ] File upload for article images
-- [ ] Rich text editor integration
-- [ ] Email notifications for article status
-- [ ] Article comments system
-- [ ] Social media sharing
-- [ ] Advanced search with filters
-- [ ] Analytics dashboard
-- [ ] Multi-language support (Hindi/English)
-
----
-
 ## 📄 License
 
 MIT License - feel free to use this project for learning and development.
 
 ---
 
-## 🙏 Acknowledgments
-
-Built with ❤️ for Uttarakhand's digital media ecosystem.
