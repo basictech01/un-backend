@@ -1,3 +1,6 @@
+scalar DateTime
+scalar JSON
+
 input SignupInput {
     name: String!
     email: String!
@@ -32,7 +35,7 @@ type RefreshPayload {
     token: String!
 }
 
-extend type Query {
+type Query {
     me: UserProfile!
 }
 

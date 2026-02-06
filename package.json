@@ -37,6 +37,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
     "mysql2": "^3.16.3",
+    "neverthrow": "^8.2.0",
     "winston": "^3.19.0"
   },
   "devDependencies": {

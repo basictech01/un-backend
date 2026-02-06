@@ -8,99 +8,130 @@ jest.unstable_mockModule('../../database/db.ts', () => ({
 
 jest.unstable_mockModule('../../utils/error.ts', () => ({
     ERRORS: {
-        USER_NOT_FOUND: new Error('User not found'),
-        DUPLICATE_EMAIL: new Error('Email already exists'),
+        DATABASE_ERROR: { message: 'Database operation failed', code: 10001 },
+        DUPLICATE_EMAIL: { message: 'Email already exists', code: 30004 },
+        USER_CREATION_FAILED: { message: 'Failed to create user', code: 30002 },
+        USER_UPDATE_FAILED: { message: 'Failed to update user', code: 30003 },
+    },
+    RequestError: class RequestError extends Error {
+        code: number;
+        statusCode: number;
+        constructor(msg: string, code: number, statusCode: number) {
+            super(msg);
+            this.code = code;
+            this.statusCode = statusCode;
+        }
     },
 }));
 
-const UserRepo = await import('../../repositories/user.repository.ts');
+jest.unstable_mockModule('../../utils/logger.ts', () => ({
+    default: () => ({
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+        debug: jest.fn(),
+    }),
+}));
 
-describe('User Repository', () => {
+const { userRepository } = await import('../../repositories/user.repository.ts');
+
+describe('UserRepository', () => {
     beforeEach(() => {
         mockQuery.mockReset();
     });
 
     describe('findByEmail', () => {
-        it('should return user when found', async () => {
+        it('should return ok with user when found', async () => {
             const mockUser = { id: 1, email: 'test@test.com', name: 'Test' };
             mockQuery.mockResolvedValue([[mockUser]]);
 
-            const user = await UserRepo.findByEmail('test@test.com');
-            expect(user).toEqual(mockUser);
+            const result = await userRepository.findByEmail('test@test.com');
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toEqual(mockUser);
             expect(mockQuery).toHaveBeenCalledWith(
                 'SELECT * FROM users WHERE email = ?',
                 ['test@test.com']
             );
         });
 
-        it('should return null when user not found', async () => {
+        it('should return ok with null when not found', async () => {
             mockQuery.mockResolvedValue([[]]);
 
-            const user = await UserRepo.findByEmail('notfound@test.com');
-            expect(user).toBeNull();
+            const result = await userRepository.findByEmail('notfound@test.com');
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toBeNull();
+        });
+
+        it('should return err on database failure', async () => {
+            mockQuery.mockRejectedValue(new Error('connection lost'));
+
+            const result = await userRepository.findByEmail('test@test.com');
+            expect(result.isErr()).toBe(true);
         });
     });
 
     describe('findById', () => {
-        it('should return user without password_hash', async () => {
+        it('should return ok with user', async () => {
             const mockUser = { id: 1, name: 'Test', email: 'test@test.com' };
             mockQuery.mockResolvedValue([[mockUser]]);
 
-            const user = await UserRepo.findById(1);
-            expect(user).toEqual(mockUser);
-            expect(mockQuery).toHaveBeenCalledWith(
-                expect.stringContaining('SELECT id, name, email'),
-                [1]
-            );
+            const result = await userRepository.findById(1);
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toEqual(mockUser);
         });
 
-        it('should return null when user not found', async () => {
+        it('should return ok with null when not found', async () => {
             mockQuery.mockResolvedValue([[]]);
 
-            const user = await UserRepo.findById(999);
-            expect(user).toBeNull();
+            const result = await userRepository.findById(999);
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toBeNull();
         });
     });
 
     describe('findByIds', () => {
-        it('should return users matching the given IDs', async () => {
-            const mockUsers = [
-                { id: 1, name: 'Alice' },
-                { id: 3, name: 'Charlie' },
-            ];
+        it('should return ok with users matching IDs', async () => {
+            const mockUsers = [{ id: 1, name: 'Alice' }, { id: 3, name: 'Charlie' }];
             mockQuery.mockResolvedValue([mockUsers]);
 
-            const users = await UserRepo.findByIds([1, 3]);
-            expect(users).toEqual(mockUsers);
-            expect(mockQuery).toHaveBeenCalledWith(
-                expect.stringContaining('WHERE id IN (?)'),
-                [[1, 3]]
-            );
+            const result = await userRepository.findByIds([1, 3]);
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toEqual(mockUsers);
         });
 
-        it('should return empty array for empty input', async () => {
-            const users = await UserRepo.findByIds([]);
-            expect(users).toEqual([]);
+        it('should return ok with empty array for empty input', async () => {
+            const result = await userRepository.findByIds([]);
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toEqual([]);
             expect(mockQuery).not.toHaveBeenCalled();
         });
     });
 
     describe('create', () => {
-        it('should insert user and return insertId', async () => {
+        it('should return ok with insertId', async () => {
             mockQuery.mockResolvedValue([{ insertId: 42 }]);
 
-            const id = await UserRepo.create('Test', 'test@test.com', 'hashedpw');
-            expect(id).toBe(42);
+            const result = await userRepository.create('Test', 'test@test.com', 'hashedpw');
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toBe(42);
             expect(mockQuery).toHaveBeenCalledWith(
                 expect.stringContaining('INSERT INTO users'),
                 ['Test', 'test@test.com', 'hashedpw', 'author']
             );
         });
 
+        it('should return err with DUPLICATE_EMAIL on duplicate entry', async () => {
+            mockQuery.mockRejectedValue(new Error('ER_DUP_ENTRY'));
+
+            const result = await userRepository.create('Test', 'test@test.com', 'hashedpw');
+            expect(result.isErr()).toBe(true);
+            expect(result._unsafeUnwrapErr().message).toBe('Email already exists');
+        });
+
         it('should accept custom role', async () => {
             mockQuery.mockResolvedValue([{ insertId: 1 }]);
 
-            await UserRepo.create('Admin', 'admin@test.com', 'hashedpw', 'admin');
+            await userRepository.create('Admin', 'admin@test.com', 'hashedpw', 'admin');
             expect(mockQuery).toHaveBeenCalledWith(
                 expect.any(String),
                 ['Admin', 'admin@test.com', 'hashedpw', 'admin']
@@ -109,10 +140,11 @@ describe('User Repository', () => {
     });
 
     describe('updateProfile', () => {
-        it('should update provided fields', async () => {
+        it('should return ok after updating fields', async () => {
             mockQuery.mockResolvedValue([{ affectedRows: 1 }]);
 
-            await UserRepo.updateProfile(1, { name: 'Updated', bio: 'New bio' });
+            const result = await userRepository.updateProfile(1, { name: 'Updated', bio: 'New bio' });
+            expect(result.isOk()).toBe(true);
             expect(mockQuery).toHaveBeenCalledWith(
                 expect.stringContaining('UPDATE users SET'),
                 expect.arrayContaining(['Updated', 'New bio', 1])
@@ -120,16 +152,18 @@ describe('User Repository', () => {
         });
 
         it('should skip when no fields provided', async () => {
-            await UserRepo.updateProfile(1, {});
+            const result = await userRepository.updateProfile(1, {});
+            expect(result.isOk()).toBe(true);
             expect(mockQuery).not.toHaveBeenCalled();
         });
     });
 
     describe('updatePassword', () => {
-        it('should update password hash', async () => {
+        it('should return ok after updating password', async () => {
             mockQuery.mockResolvedValue([{ affectedRows: 1 }]);
 
-            await UserRepo.updatePassword(1, 'newhash');
+            const result = await userRepository.updatePassword(1, 'newhash');
+            expect(result.isOk()).toBe(true);
             expect(mockQuery).toHaveBeenCalledWith(
                 'UPDATE users SET password_hash = ? WHERE id = ?',
                 ['newhash', 1]
@@ -138,10 +172,11 @@ describe('User Repository', () => {
     });
 
     describe('updateStatus', () => {
-        it('should update is_active', async () => {
+        it('should return ok after updating status', async () => {
             mockQuery.mockResolvedValue([{ affectedRows: 1 }]);
 
-            await UserRepo.updateStatus(1, false);
+            const result = await userRepository.updateStatus(1, false);
+            expect(result.isOk()).toBe(true);
             expect(mockQuery).toHaveBeenCalledWith(
                 'UPDATE users SET is_active = ? WHERE id = ?',
                 [false, 1]

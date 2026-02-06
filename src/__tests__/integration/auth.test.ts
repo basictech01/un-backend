@@ -12,11 +12,7 @@ jest.unstable_mockModule('../../database/db.ts', () => ({
 jest.unstable_mockModule('../../config/env.ts', () => ({
     PORT: '4000',
     NODE_ENV: 'test',
-    SERVER_URL: 'http://localhost:4000',
     CORS_ORIGIN: '*',
-    GRAPHQL_PATH: '/graphql',
-    GRAPHQL_INTROSPECTION: true,
-    GRAPHQL_PLAYGROUND: false,
     JWT_SECRET: 'test-jwt-secret',
     JWT_EXPIRES_IN: '1h',
     JWT_REFRESH_SECRET: 'test-refresh-secret',
@@ -30,7 +26,6 @@ jest.unstable_mockModule('../../config/env.ts', () => ({
     DB_PORT: 3306,
 }));
 
-// Mock logger to suppress output during tests
 jest.unstable_mockModule('../../utils/logger.ts', () => ({
     default: () => ({
         info: jest.fn(),
@@ -89,11 +84,8 @@ function gql(query: string, variables?: Record<string, any>) {
 describe('Auth Integration', () => {
     describe('Mutation: signup', () => {
         it('should create a new user and return tokens', async () => {
-            // findByEmail returns null (no existing user)
             mockQuery.mockResolvedValueOnce([[]]);
-            // create returns insertId
             mockQuery.mockResolvedValueOnce([{ insertId: 1 }]);
-            // findById returns the new user
             mockQuery.mockResolvedValueOnce([[{
                 id: 1, name: 'Test User', email: 'test@test.com',
                 bio: null, profession: null, profile_photo: null,
@@ -130,7 +122,7 @@ describe('Auth Integration', () => {
             `);
 
             expect(res.body.errors).toBeDefined();
-            expect(res.body.errors[0].message).toContain('Email already exists');
+            expect(res.body.errors[0].message).toBe('Email already exists');
         });
     });
 
@@ -176,7 +168,7 @@ describe('Auth Integration', () => {
             `);
 
             expect(res.body.errors).toBeDefined();
-            expect(res.body.errors[0].message).toContain('Invalid email or password');
+            expect(res.body.errors[0].message).toBe('Invalid email or password');
         });
 
         it('should reject inactive user', async () => {
@@ -195,7 +187,7 @@ describe('Auth Integration', () => {
             `);
 
             expect(res.body.errors).toBeDefined();
-            expect(res.body.errors[0].message).toContain('Access forbidden');
+            expect(res.body.errors[0].message).toBe('Access forbidden');
         });
     });
 
@@ -224,7 +216,7 @@ describe('Auth Integration', () => {
             const res = await gql('{ me { id name } }');
 
             expect(res.body.errors).toBeDefined();
-            expect(res.body.errors[0].message).toContain('Unauthorized');
+            expect(res.body.errors[0].message).toBe('Unauthorized access');
         });
     });
 

@@ -1,9 +1,10 @@
 import { jest } from '@jest/globals';
+import { ok, err } from 'neverthrow';
 
 const mockFindByIds = jest.fn();
 
 jest.unstable_mockModule('../../repositories/user.repository.ts', () => ({
-    findByIds: mockFindByIds,
+    userRepository: { findByIds: mockFindByIds },
 }));
 
 const { createUserLoader } = await import('../../graphql/loaders/user.loader.ts');
@@ -19,11 +20,10 @@ describe('User DataLoader', () => {
             { id: 2, name: 'Bob', email: 'bob@test.com' },
             { id: 3, name: 'Charlie', email: 'charlie@test.com' },
         ];
-        mockFindByIds.mockResolvedValue(users);
+        mockFindByIds.mockResolvedValue(ok(users));
 
         const loader = createUserLoader();
 
-        // Fire three loads — DataLoader batches them into one call
         const [u1, u2, u3] = await Promise.all([
             loader.load(1),
             loader.load(2),
@@ -38,12 +38,11 @@ describe('User DataLoader', () => {
     });
 
     it('should return results in the same order as requested IDs', async () => {
-        // DB may return rows in any order
         const users = [
             { id: 3, name: 'Charlie' },
             { id: 1, name: 'Alice' },
         ];
-        mockFindByIds.mockResolvedValue(users);
+        mockFindByIds.mockResolvedValue(ok(users));
 
         const loader = createUserLoader();
         const [u1, u2, u3] = await Promise.all([
@@ -58,7 +57,7 @@ describe('User DataLoader', () => {
     });
 
     it('should return null for missing IDs', async () => {
-        mockFindByIds.mockResolvedValue([]);
+        mockFindByIds.mockResolvedValue(ok([]));
 
         const loader = createUserLoader();
         const result = await loader.load(999);
@@ -66,9 +65,18 @@ describe('User DataLoader', () => {
         expect(result).toBeNull();
     });
 
+    it('should return null for all IDs on database error', async () => {
+        mockFindByIds.mockResolvedValue(err({ message: 'DB error', code: 10001 }));
+
+        const loader = createUserLoader();
+        const result = await loader.load(1);
+
+        expect(result).toBeNull();
+    });
+
     it('should cache repeated loads for the same ID within one request', async () => {
         const users = [{ id: 1, name: 'Alice' }];
-        mockFindByIds.mockResolvedValue(users);
+        mockFindByIds.mockResolvedValue(ok(users));
 
         const loader = createUserLoader();
 
@@ -83,7 +91,7 @@ describe('User DataLoader', () => {
 
     it('should create independent caches per loader instance (per request)', async () => {
         const users = [{ id: 1, name: 'Alice' }];
-        mockFindByIds.mockResolvedValue(users);
+        mockFindByIds.mockResolvedValue(ok(users));
 
         const loader1 = createUserLoader();
         const loader2 = createUserLoader();
