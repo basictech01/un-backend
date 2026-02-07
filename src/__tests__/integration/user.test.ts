@@ -1,11 +1,23 @@
 import { jest } from '@jest/globals';
+import type { ApolloServer as ApolloServerType } from '@apollo/server';
+import mysql from 'mysql2/promise';
+import { GenericContainer } from 'testcontainers';
 
-// --- Mocks (must be set up before imports) ---
+jest.setTimeout(120000);
 
-const mockQuery = jest.fn();
+// --- Real DB pool that points to testcontainer ---
+
+let mockPool: any;
+let container: any;
+
+// Proxy delegates all property access/calls to mockPool at runtime.
+// Direct getter doesn't work with jest.unstable_mockModule in ESM.
+const poolProxy = new Proxy({} as any, {
+    get(_target, prop) { return mockPool[prop]; },
+});
 
 jest.unstable_mockModule('../../database/db.ts', () => ({
-    db: { query: mockQuery },
+    db: poolProxy,
     connectToDatabase: jest.fn(),
 }));
 
@@ -35,6 +47,7 @@ jest.unstable_mockModule('../../utils/logger.ts', () => ({
     }),
 }));
 
+const bcrypt = await import('bcrypt');
 const { ApolloServer } = await import('@apollo/server');
 const { expressMiddleware } = await import('@as-integrations/express5');
 const express = await import('express');
@@ -44,14 +57,85 @@ const { optionalAuth } = await import('../../middleware/auth.middleware.ts');
 const { createAuthToken } = await import('../../utils/jwt.ts');
 const { createLoaders } = await import('../../graphql/loaders/user.loader.ts');
 
+// --- DB setup/teardown helpers ---
+
+const CREATE_USERS_TABLE = `
+    CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(150) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        bio TEXT,
+        profession VARCHAR(100),
+        profile_photo VARCHAR(255),
+        role ENUM('author','admin') NOT NULL DEFAULT 'author',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_email (email),
+        INDEX idx_role (role),
+        INDEX idx_active (is_active)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+`;
+
+async function setupDatabase() {
+    await mockPool.query(CREATE_USERS_TABLE);
+}
+
+async function tearDownDatabase() {
+    await mockPool.query('DROP TABLE IF EXISTS users');
+}
+
+async function resetUsersTable() {
+    const hash = await bcrypt.hash('password123', 10);
+    await mockPool.query('DELETE FROM users');
+    await mockPool.query(`ALTER TABLE users AUTO_INCREMENT = 1`);
+    await mockPool.query(`
+        INSERT INTO users (id, name, email, password_hash, bio, profession, profile_photo, role, is_active) VALUES
+        (1, 'Admin User', 'admin@test.com', '${hash}', 'Platform admin', 'Administrator', NULL, 'admin', TRUE),
+        (2, 'Author One', 'author1@test.com', '${hash}', 'Bio one', 'Writer', NULL, 'author', TRUE),
+        (3, 'Author Two', 'author2@test.com', '${hash}', 'Bio two', 'Journalist', NULL, 'author', TRUE),
+        (4, 'Inactive Author', 'inactive@test.com', '${hash}', NULL, NULL, NULL, 'author', FALSE),
+        (5, 'Admin Two', 'admin2@test.com', '${hash}', NULL, NULL, NULL, 'admin', TRUE)
+    `);
+}
+
+async function findUserById(id: number) {
+    const [rows] = await mockPool.query('SELECT * FROM users WHERE id = ?', [id]);
+    return (rows as any[])[0] || null;
+}
+
 // --- Test server setup ---
 
 let app: any;
-let apollo: InstanceType<typeof ApolloServer>;
+let apollo: ApolloServerType<any>;
+
+const adminToken = createAuthToken({ userId: 1, email: 'admin@test.com', is_admin: true });
+const authorToken = createAuthToken({ userId: 2, email: 'author1@test.com', is_admin: false });
 
 beforeAll(async () => {
-    const { typeDefs, resolvers } = buildGraphQL();
+    container = await new GenericContainer('mysql:latest')
+        .withExposedPorts(3306)
+        .withEnvironment({
+            MYSQL_ROOT_PASSWORD: 'root',
+            MYSQL_DATABASE: 'test_db',
+            MYSQL_USER: 'test_user',
+            MYSQL_PASSWORD: 'test_password',
+        })
+        .start();
 
+    const port = container.getMappedPort(3306);
+
+    mockPool = mysql.createPool({
+        host: 'localhost',
+        user: 'test_user',
+        password: 'test_password',
+        database: 'test_db',
+        port,
+    });
+
+    await setupDatabase();
+
+    const { typeDefs, resolvers } = buildGraphQL();
     app = express.default();
     apollo = new ApolloServer({ typeDefs, resolvers });
     await apollo.start();
@@ -63,11 +147,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-    await apollo.stop();
-});
-
-beforeEach(() => {
-    mockQuery.mockReset();
+    if (apollo) await apollo.stop();
+    await tearDownDatabase();
+    if (mockPool) await mockPool.end();
+    if (container) await container.stop();
 });
 
 // --- Helpers ---
@@ -85,21 +168,6 @@ function gqlAuth(token: string, query: string, variables?: Record<string, any>) 
         .send({ query, variables });
 }
 
-const adminToken = createAuthToken({ userId: 1, email: 'admin@test.com', is_admin: true });
-const authorToken = createAuthToken({ userId: 2, email: 'author@test.com', is_admin: false });
-
-const mockAuthor = {
-    id: 2, name: 'Author User', email: 'author@test.com',
-    bio: 'A bio', profession: 'Writer', profile_photo: null,
-    role: 'author', is_active: true, created_at: new Date().toISOString(),
-};
-
-const mockAdmin = {
-    id: 1, name: 'Admin User', email: 'admin@test.com',
-    bio: null, profession: null, profile_photo: null,
-    role: 'admin', is_active: true, created_at: new Date().toISOString(),
-};
-
 // --- Tests ---
 
 describe('User Management Integration', () => {
@@ -114,19 +182,34 @@ describe('User Management Integration', () => {
             }
         `;
 
-        it('should return paginated users for admin', async () => {
-            // findPaginated query
-            mockQuery.mockResolvedValueOnce([[mockAdmin, mockAuthor]]);
-            // countFiltered query
-            mockQuery.mockResolvedValueOnce([[{ count: 2 }]]);
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
+        it('should return paginated users for admin', async () => {
             const res = await gqlAuth(adminToken, usersQuery, { first: 10 });
 
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
-            expect(res.body.data.users.edges).toHaveLength(2);
-            expect(res.body.data.users.totalCount).toBe(2);
+            expect(res.body.data.users.edges).toHaveLength(5);
+            expect(res.body.data.users.totalCount).toBe(5);
             expect(res.body.data.users.pageInfo.hasNextPage).toBe(false);
+        });
+
+        it('should paginate with first/after', async () => {
+            const firstPage = await gqlAuth(adminToken, usersQuery, { first: 2 });
+
+            expect(firstPage.body.data.users.edges).toHaveLength(2);
+            expect(firstPage.body.data.users.pageInfo.hasNextPage).toBe(true);
+
+            const endCursor = firstPage.body.data.users.pageInfo.endCursor;
+            const secondPage = await gqlAuth(adminToken, usersQuery, { first: 2, after: endCursor });
+
+            expect(secondPage.body.data.users.edges).toHaveLength(2);
+            // IDs should continue after previous page
+            const firstPageIds = firstPage.body.data.users.edges.map((e: any) => e.node.id);
+            const secondPageIds = secondPage.body.data.users.edges.map((e: any) => e.node.id);
+            expect(Math.min(...secondPageIds)).toBeGreaterThan(Math.max(...firstPageIds));
         });
 
         it('should reject non-admin', async () => {
@@ -148,35 +231,46 @@ describe('User Management Integration', () => {
         const authorsQuery = `
             query($first: Int) {
                 authors(first: $first) {
-                    edges { cursor node { id name role } }
+                    edges { cursor node { id name role is_active } }
                     pageInfo { hasNextPage }
                     totalCount
                 }
             }
         `;
 
-        it('should return only authors without auth', async () => {
-            mockQuery.mockResolvedValueOnce([[mockAuthor]]);
-            mockQuery.mockResolvedValueOnce([[{ count: 1 }]]);
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
+        it('should return only authors without auth', async () => {
             const res = await gql(authorsQuery, { first: 10 });
 
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
-            expect(res.body.data.authors.edges).toHaveLength(1);
-            expect(res.body.data.authors.edges[0].node.role).toBe('author');
-            expect(res.body.data.authors.totalCount).toBe(1);
+
+            const edges = res.body.data.authors.edges;
+            // Should only contain authors (3 authors in seed data)
+            expect(edges).toHaveLength(3);
+            edges.forEach((edge: any) => {
+                expect(edge.node.role).toBe('author');
+            });
+            expect(res.body.data.authors.totalCount).toBe(3);
         });
 
-        it('should filter by role=author in the query', async () => {
-            mockQuery.mockResolvedValueOnce([[]]);
-            mockQuery.mockResolvedValueOnce([[{ count: 0 }]]);
+        it('should filter authors with search', async () => {
+            const res = await gql(`
+                query {
+                    authors(first: 10, filter: { search: "One" }) {
+                        edges { node { id name } }
+                        totalCount
+                    }
+                }
+            `);
 
-            await gql(authorsQuery, { first: 10 });
-
-            // First call is findPaginated - should contain role filter
-            expect(mockQuery.mock.calls[0][0]).toContain('role = ?');
-            expect(mockQuery.mock.calls[0][1]).toContain('author');
+            expect(res.status).toBe(200);
+            expect(res.body.errors).toBeUndefined();
+            expect(res.body.data.authors.edges).toHaveLength(1);
+            expect(res.body.data.authors.edges[0].node.name).toBe('Author One');
         });
     });
 
@@ -190,16 +284,21 @@ describe('User Management Integration', () => {
             }
         `;
 
-        it('should return only admins for admin user', async () => {
-            mockQuery.mockResolvedValueOnce([[mockAdmin]]);
-            mockQuery.mockResolvedValueOnce([[{ count: 1 }]]);
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
+        it('should return only admins for admin user', async () => {
             const res = await gqlAuth(adminToken, adminsQuery, { first: 10 });
 
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
-            expect(res.body.data.admins.edges).toHaveLength(1);
-            expect(res.body.data.admins.edges[0].node.role).toBe('admin');
+
+            const edges = res.body.data.admins.edges;
+            expect(edges).toHaveLength(2);
+            edges.forEach((edge: any) => {
+                expect(edge.node.role).toBe('admin');
+            });
         });
 
         it('should reject non-admin', async () => {
@@ -219,14 +318,11 @@ describe('User Management Integration', () => {
             }
         `;
 
-        it('should update own profile', async () => {
-            // updateProfile query
-            mockQuery.mockResolvedValueOnce([{ affectedRows: 1 }]);
-            // findById after update
-            mockQuery.mockResolvedValueOnce([[{
-                ...mockAuthor, bio: 'Updated bio', profession: 'Editor',
-            }]]);
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
+        it('should update own profile', async () => {
             const res = await gqlAuth(authorToken, updateProfileMutation, {
                 input: { bio: 'Updated bio', profession: 'Editor' },
             });
@@ -235,6 +331,11 @@ describe('User Management Integration', () => {
             expect(res.body.errors).toBeUndefined();
             expect(res.body.data.updateProfile.bio).toBe('Updated bio');
             expect(res.body.data.updateProfile.profession).toBe('Editor');
+
+            // Verify in DB
+            const user = await findUserById(2);
+            expect(user.bio).toBe('Updated bio');
+            expect(user.profession).toBe('Editor');
         });
 
         it('should reject unauthenticated', async () => {
@@ -256,26 +357,27 @@ describe('User Management Integration', () => {
             }
         `;
 
-        it('should allow admin to update author', async () => {
-            // findById to verify target
-            mockQuery.mockResolvedValueOnce([[mockAuthor]]);
-            // updateProfile query
-            mockQuery.mockResolvedValueOnce([{ affectedRows: 1 }]);
-            // findById after update
-            mockQuery.mockResolvedValueOnce([[{ ...mockAuthor, bio: 'Admin updated' }]]);
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
+        it('should allow admin to update author', async () => {
             const res = await gqlAuth(adminToken, adminUpdateMutation, {
-                id: 2, input: { bio: 'Admin updated' },
+                id: 2, input: { bio: 'Admin updated bio' },
             });
 
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
-            expect(res.body.data.adminUpdateUser.bio).toBe('Admin updated');
+            expect(res.body.data.adminUpdateUser.bio).toBe('Admin updated bio');
+
+            // Verify in DB
+            const user = await findUserById(2);
+            expect(user.bio).toBe('Admin updated bio');
         });
 
         it('should reject non-admin', async () => {
             const res = await gqlAuth(authorToken, adminUpdateMutation, {
-                id: 2, input: { bio: 'test' },
+                id: 3, input: { bio: 'test' },
             });
 
             expect(res.body.errors).toBeDefined();
@@ -283,8 +385,6 @@ describe('User Management Integration', () => {
         });
 
         it('should reject if target user not found', async () => {
-            mockQuery.mockResolvedValueOnce([[]]);
-
             const res = await gqlAuth(adminToken, adminUpdateMutation, {
                 id: 999, input: { bio: 'test' },
             });
@@ -294,10 +394,8 @@ describe('User Management Integration', () => {
         });
 
         it('should reject if target is admin', async () => {
-            mockQuery.mockResolvedValueOnce([[mockAdmin]]);
-
             const res = await gqlAuth(adminToken, adminUpdateMutation, {
-                id: 1, input: { bio: 'test' },
+                id: 5, input: { bio: 'test' },
             });
 
             expect(res.body.errors).toBeDefined();
@@ -314,14 +412,11 @@ describe('User Management Integration', () => {
             }
         `;
 
-        it('should allow admin to deactivate author', async () => {
-            // findById to verify target
-            mockQuery.mockResolvedValueOnce([[mockAuthor]]);
-            // updateStatus query
-            mockQuery.mockResolvedValueOnce([{ affectedRows: 1 }]);
-            // findById after update
-            mockQuery.mockResolvedValueOnce([[{ ...mockAuthor, is_active: false }]]);
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
+        it('should allow admin to deactivate author', async () => {
             const res = await gqlAuth(adminToken, toggleMutation, {
                 id: 2, isActive: false,
             });
@@ -329,29 +424,29 @@ describe('User Management Integration', () => {
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
             expect(res.body.data.toggleUserStatus.is_active).toBe(false);
+
+            // Verify in DB
+            const user = await findUserById(2);
+            expect(user.is_active).toBe(0); // MySQL returns 0/1 for booleans
         });
 
         it('should allow admin to activate author', async () => {
-            const inactiveAuthor = { ...mockAuthor, is_active: false };
-            // findById to verify target
-            mockQuery.mockResolvedValueOnce([[inactiveAuthor]]);
-            // updateStatus query
-            mockQuery.mockResolvedValueOnce([{ affectedRows: 1 }]);
-            // findById after update
-            mockQuery.mockResolvedValueOnce([[{ ...mockAuthor, is_active: true }]]);
-
             const res = await gqlAuth(adminToken, toggleMutation, {
-                id: 2, isActive: true,
+                id: 4, isActive: true,
             });
 
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
             expect(res.body.data.toggleUserStatus.is_active).toBe(true);
+
+            // Verify in DB
+            const user = await findUserById(4);
+            expect(user.is_active).toBe(1);
         });
 
         it('should reject non-admin', async () => {
             const res = await gqlAuth(authorToken, toggleMutation, {
-                id: 2, isActive: false,
+                id: 3, isActive: false,
             });
 
             expect(res.body.errors).toBeDefined();
@@ -359,10 +454,8 @@ describe('User Management Integration', () => {
         });
 
         it('should reject if target is admin', async () => {
-            mockQuery.mockResolvedValueOnce([[mockAdmin]]);
-
             const res = await gqlAuth(adminToken, toggleMutation, {
-                id: 1, isActive: false,
+                id: 5, isActive: false,
             });
 
             expect(res.body.errors).toBeDefined();

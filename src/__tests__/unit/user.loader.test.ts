@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals';
 import { ok, err } from 'neverthrow';
 
-const mockFindByIds = jest.fn();
+const mockFindByIds = jest.fn<(...args: any[]) => any>();
 
 jest.unstable_mockModule('../../repositories/user.repository.ts', () => ({
     userRepository: { findByIds: mockFindByIds },
