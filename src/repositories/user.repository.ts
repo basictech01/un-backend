@@ -88,7 +88,7 @@ class UserRepository {
             return ok(undefined);
         } catch (error) {
             logger.error('Error updating user profile:', error);
-            return err(ERRORS.USER_UPDATE_FAILED);
+            return err(ERRORS.DATABASE_ERROR);
         }
     }
 
@@ -101,7 +101,7 @@ class UserRepository {
             return ok(undefined);
         } catch (error) {
             logger.error('Error updating password:', error);
-            return err(ERRORS.USER_UPDATE_FAILED);
+            return err(ERRORS.DATABASE_ERROR);
         }
     }
 
@@ -114,7 +114,7 @@ class UserRepository {
             return ok(undefined);
         } catch (error) {
             logger.error('Error updating user status:', error);
-            return err(ERRORS.USER_UPDATE_FAILED);
+            return err(ERRORS.DATABASE_ERROR);
         }
     }
 

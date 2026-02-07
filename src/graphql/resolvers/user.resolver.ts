@@ -12,15 +12,15 @@ function validatePaginationArgs(args: PaginationArgs): PaginationArgs {
 
     // Cannot use both forward and backward at the same time
     if (first != null && last != null) {
-        throw toGraphQLError(ERRORS.INVALID_PAGINATION_ARGS);
+        throw toGraphQLError(ERRORS.PAGINATION_CONFLICTING_ARGS);
     }
 
     // Validate limits
     if (first != null && (first < 1 || first > MAX_PAGE_SIZE)) {
-        throw toGraphQLError(ERRORS.INVALID_PAGINATION_ARGS);
+        throw toGraphQLError(ERRORS.PAGINATION_LIMIT_EXCEEDED);
     }
     if (last != null && (last < 1 || last > MAX_PAGE_SIZE)) {
-        throw toGraphQLError(ERRORS.INVALID_PAGINATION_ARGS);
+        throw toGraphQLError(ERRORS.PAGINATION_LIMIT_EXCEEDED);
     }
 
     // Default to forward pagination

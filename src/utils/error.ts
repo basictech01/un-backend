@@ -66,8 +66,9 @@ export const ERRORS = {
     USER_CREATION_FAILED: new RequestError("Failed to create user", 30002, 500),
     USER_UPDATE_FAILED: new RequestError("Failed to update user", 30003, 500),
     DUPLICATE_EMAIL: new RequestError("Email already exists", 30004, 409),
-    INVALID_PAGINATION_ARGS: new RequestError("Invalid pagination arguments", 30005, 400),
+    PAGINATION_CONFLICTING_ARGS: new RequestError("Cannot use both 'first' and 'last' pagination arguments together", 30005, 400),
     USER_NOT_AUTHOR: new RequestError("User is not an author", 30006, 400),
+    PAGINATION_LIMIT_EXCEEDED: new RequestError("Pagination limit must be between 1 and 100", 30007, 400),
 } as const;
 
 // Convert RequestError to GraphQLError for resolver/context usage
