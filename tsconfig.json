@@ -35,5 +35,5 @@
     "esm": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "**/*.js", "src/__tests__"]
+  "exclude": ["node_modules", "dist", "**/*.js"]
 }

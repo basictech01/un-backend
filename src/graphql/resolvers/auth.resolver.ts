@@ -5,7 +5,7 @@ import { createAuthToken, createRefreshToken, decodeRefreshToken } from '../../u
 import { ERRORS, toGraphQLError } from '../../utils/error.ts';
 import { requireAuth, GraphQLContext } from '../context.ts';
 import { userRepository } from '../../repositories/user.repository.ts';
-import { toUserView } from '../../models/user.model.ts';
+import { toUserView, SignupInput, LoginInput } from '../../models/user.model.ts';
 
 export const authResolvers = {
     DateTime: DateTimeResolver,
@@ -29,7 +29,7 @@ export const authResolvers = {
     },
 
     Mutation: {
-        signup: async (_: unknown, { input }: { input: { name: string; email: string; password: string; role?: string } }) => {
+        signup: async (_: unknown, { input }: { input: SignupInput }) => {
             const { name, email, password, role } = input;
 
             if (!name || !email || !password) {
@@ -45,7 +45,7 @@ export const authResolvers = {
             }
 
             const passwordHash = await bcrypt.hash(password, 12);
-            const createResult = await userRepository.create(name, email, passwordHash, role || 'author');
+            const createResult = await userRepository.create({ name, email, passwordHash, role: role || 'author' });
 
             if (createResult.isErr()) {
                 throw toGraphQLError(createResult.error);
@@ -64,7 +64,7 @@ export const authResolvers = {
             return { token, refreshToken, user };
         },
 
-        login: async (_: unknown, { input }: { input: { email: string; password: string } }) => {
+        login: async (_: unknown, { input }: { input: LoginInput }) => {
             const { email, password } = input;
 
             if (!email || !password) {

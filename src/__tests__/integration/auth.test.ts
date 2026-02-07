@@ -1,11 +1,23 @@
 import { jest } from '@jest/globals';
+import type { ApolloServer as ApolloServerType } from '@apollo/server';
+import mysql from 'mysql2/promise';
+import { GenericContainer } from 'testcontainers';
 
-// --- Mocks (must be set up before imports) ---
+jest.setTimeout(120000);
 
-const mockQuery = jest.fn();
+// --- Real DB pool that points to testcontainer ---
+
+let mockPool: any;
+let container: any;
+
+// Proxy delegates all property access/calls to mockPool at runtime.
+// Direct getter doesn't work with jest.unstable_mockModule in ESM.
+const poolProxy = new Proxy({} as any, {
+    get(_target, prop) { return mockPool[prop]; },
+});
 
 jest.unstable_mockModule('../../database/db.ts', () => ({
-    db: { query: mockQuery },
+    db: poolProxy,
     connectToDatabase: jest.fn(),
 }));
 
@@ -45,14 +57,74 @@ const { optionalAuth } = await import('../../middleware/auth.middleware.ts');
 const { createAuthToken, createRefreshToken } = await import('../../utils/jwt.ts');
 const { createLoaders } = await import('../../graphql/loaders/user.loader.ts');
 
+// --- DB setup/teardown helpers ---
+
+const CREATE_USERS_TABLE = `
+    CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(150) NOT NULL UNIQUE,
+        password_hash VARCHAR(255) NOT NULL,
+        bio TEXT,
+        profession VARCHAR(100),
+        profile_photo VARCHAR(255),
+        role ENUM('author','admin') NOT NULL DEFAULT 'author',
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_email (email),
+        INDEX idx_role (role),
+        INDEX idx_active (is_active)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+`;
+
+async function setupDatabase() {
+    await mockPool.query(CREATE_USERS_TABLE);
+}
+
+async function tearDownDatabase() {
+    await mockPool.query('DROP TABLE IF EXISTS users');
+}
+
+async function resetUsersTable() {
+    const hash = await bcrypt.hash('password123', 10);
+    await mockPool.query('DELETE FROM users');
+    await mockPool.query(`
+        INSERT INTO users (id, name, email, password_hash, bio, profession, profile_photo, role, is_active) VALUES
+        (1, 'Admin User', 'admin@test.com', '${hash}', 'Platform admin', 'Administrator', NULL, 'admin', TRUE),
+        (2, 'Author User', 'author@test.com', '${hash}', 'A bio', 'Writer', NULL, 'author', TRUE),
+        (3, 'Inactive Author', 'inactive@test.com', '${hash}', NULL, NULL, NULL, 'author', FALSE)
+    `);
+}
+
 // --- Test server setup ---
 
 let app: any;
-let apollo: InstanceType<typeof ApolloServer>;
+let apollo: ApolloServerType<any>;
 
 beforeAll(async () => {
-    const { typeDefs, resolvers } = buildGraphQL();
+    container = await new GenericContainer('mysql:latest')
+        .withExposedPorts(3306)
+        .withEnvironment({
+            MYSQL_ROOT_PASSWORD: 'root',
+            MYSQL_DATABASE: 'test_db',
+            MYSQL_USER: 'test_user',
+            MYSQL_PASSWORD: 'test_password',
+        })
+        .start();
 
+    const port = container.getMappedPort(3306);
+
+    mockPool = mysql.createPool({
+        host: 'localhost',
+        user: 'test_user',
+        password: 'test_password',
+        database: 'test_db',
+        port,
+    });
+
+    await setupDatabase();
+
+    const { typeDefs, resolvers } = buildGraphQL();
     app = express.default();
     apollo = new ApolloServer({ typeDefs, resolvers });
     await apollo.start();
@@ -64,11 +136,10 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-    await apollo.stop();
-});
-
-beforeEach(() => {
-    mockQuery.mockReset();
+    if (apollo) await apollo.stop();
+    await tearDownDatabase();
+    if (mockPool) await mockPool.end();
+    if (container) await container.stop();
 });
 
 // --- Helper ---
@@ -83,18 +154,14 @@ function gql(query: string, variables?: Record<string, any>) {
 
 describe('Auth Integration', () => {
     describe('Mutation: signup', () => {
-        it('should create a new user and return tokens', async () => {
-            mockQuery.mockResolvedValueOnce([[]]);
-            mockQuery.mockResolvedValueOnce([{ insertId: 1 }]);
-            mockQuery.mockResolvedValueOnce([[{
-                id: 1, name: 'Test User', email: 'test@test.com',
-                bio: null, profession: null, profile_photo: null,
-                role: 'author', is_active: true, created_at: new Date().toISOString(),
-            }]]);
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
+        it('should create a new user and return tokens', async () => {
             const res = await gql(`
                 mutation {
-                    signup(input: { name: "Test User", email: "test@test.com", password: "password123" }) {
+                    signup(input: { name: "New User", email: "new@test.com", password: "password123" }) {
                         token
                         refreshToken
                         user { id name email role }
@@ -106,16 +173,20 @@ describe('Auth Integration', () => {
             expect(res.body.errors).toBeUndefined();
             expect(res.body.data.signup.token).toBeDefined();
             expect(res.body.data.signup.refreshToken).toBeDefined();
-            expect(res.body.data.signup.user.name).toBe('Test User');
-            expect(res.body.data.signup.user.email).toBe('test@test.com');
+            expect(res.body.data.signup.user.name).toBe('New User');
+            expect(res.body.data.signup.user.email).toBe('new@test.com');
+            expect(res.body.data.signup.user.role).toBe('author');
+
+            // Verify user actually exists in DB
+            const [rows] = await mockPool.query('SELECT * FROM users WHERE email = ?', ['new@test.com']);
+            expect(rows).toHaveLength(1);
+            expect(rows[0].name).toBe('New User');
         });
 
         it('should reject duplicate email', async () => {
-            mockQuery.mockResolvedValueOnce([[{ id: 1, email: 'test@test.com' }]]);
-
             const res = await gql(`
                 mutation {
-                    signup(input: { name: "Test", email: "test@test.com", password: "password123" }) {
+                    signup(input: { name: "Test", email: "author@test.com", password: "password123" }) {
                         token
                     }
                 }
@@ -127,18 +198,14 @@ describe('Auth Integration', () => {
     });
 
     describe('Mutation: login', () => {
-        it('should login with valid credentials', async () => {
-            const hash = await bcrypt.hash('password123', 12);
-            mockQuery.mockResolvedValueOnce([[{
-                id: 1, name: 'Test User', email: 'test@test.com',
-                password_hash: hash, bio: null, profession: null,
-                profile_photo: null, role: 'author', is_active: true,
-                created_at: new Date().toISOString(),
-            }]]);
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
+        it('should login with valid credentials', async () => {
             const res = await gql(`
                 mutation {
-                    login(input: { email: "test@test.com", password: "password123" }) {
+                    login(input: { email: "author@test.com", password: "password123" }) {
                         token
                         refreshToken
                         user { id name email }
@@ -149,19 +216,13 @@ describe('Auth Integration', () => {
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
             expect(res.body.data.login.token).toBeDefined();
-            expect(res.body.data.login.user.email).toBe('test@test.com');
+            expect(res.body.data.login.user.email).toBe('author@test.com');
         });
 
         it('should reject invalid password', async () => {
-            const hash = await bcrypt.hash('correctpassword', 12);
-            mockQuery.mockResolvedValueOnce([[{
-                id: 1, email: 'test@test.com', password_hash: hash,
-                is_active: true, role: 'author',
-            }]]);
-
             const res = await gql(`
                 mutation {
-                    login(input: { email: "test@test.com", password: "wrongpassword" }) {
+                    login(input: { email: "author@test.com", password: "wrongpassword" }) {
                         token
                     }
                 }
@@ -172,15 +233,9 @@ describe('Auth Integration', () => {
         });
 
         it('should reject inactive user', async () => {
-            const hash = await bcrypt.hash('password123', 12);
-            mockQuery.mockResolvedValueOnce([[{
-                id: 1, email: 'test@test.com', password_hash: hash,
-                is_active: false, role: 'author',
-            }]]);
-
             const res = await gql(`
                 mutation {
-                    login(input: { email: "test@test.com", password: "password123" }) {
+                    login(input: { email: "inactive@test.com", password: "password123" }) {
                         token
                     }
                 }
@@ -192,14 +247,12 @@ describe('Auth Integration', () => {
     });
 
     describe('Query: me', () => {
-        it('should return current user when authenticated', async () => {
-            const token = createAuthToken({ userId: 1, email: 'test@test.com', is_admin: false });
+        beforeEach(async () => {
+            await resetUsersTable();
+        });
 
-            mockQuery.mockResolvedValueOnce([[{
-                id: 1, name: 'Test User', email: 'test@test.com',
-                bio: 'A bio', profession: 'Dev', profile_photo: null,
-                role: 'author', is_active: true, created_at: new Date().toISOString(),
-            }]]);
+        it('should return current user when authenticated', async () => {
+            const token = createAuthToken({ userId: 2, email: 'author@test.com', is_admin: false });
 
             const res = await supertest.default(app)
                 .post('/graphql')
@@ -208,7 +261,7 @@ describe('Auth Integration', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
-            expect(res.body.data.me.name).toBe('Test User');
+            expect(res.body.data.me.name).toBe('Author User');
             expect(res.body.data.me.bio).toBe('A bio');
         });
 
@@ -222,7 +275,7 @@ describe('Auth Integration', () => {
 
     describe('Mutation: refreshToken', () => {
         it('should return new auth token from valid refresh token', async () => {
-            const refreshToken = createRefreshToken({ userId: 1, email: 'test@test.com', is_admin: false });
+            const refreshToken = createRefreshToken({ userId: 1, email: 'admin@test.com', is_admin: true });
 
             const res = await gql(`
                 mutation {
