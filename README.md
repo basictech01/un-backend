@@ -5,7 +5,7 @@ A modern GraphQL-powered backend for Uttarakhand's editorial news platform built
 ---
 
 ## ✨ Features
-
+ 
 - **GraphQL API**: Modern, type-safe GraphQL API with Apollo Server
 - **Authentication**: JWT-based authentication for authors and admins
 - **Role-based Access**: Granular permissions for authors and administrators
