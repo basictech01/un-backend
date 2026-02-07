@@ -54,7 +54,6 @@ CREATE TABLE IF NOT EXISTS articles (
   subsections JSON NOT NULL,
 
   cover_image VARCHAR(255),
-  region VARCHAR(100),
 
   status ENUM('draft','pending','approved','rejected')
          NOT NULL DEFAULT 'draft',

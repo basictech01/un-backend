@@ -1,0 +1,49 @@
+input UserFilter {
+    role: String
+    isActive: Boolean
+    search: String
+}
+
+input UpdateProfileInput {
+    name: String
+    bio: String
+    profession: String
+    profile_photo: String
+}
+
+input AdminUpdateUserInput {
+    name: String
+    bio: String
+    profession: String
+    profile_photo: String
+}
+
+type UserEdge {
+    cursor: String!
+    node: UserProfile!
+}
+
+type PageInfo {
+    startCursor: String
+    endCursor: String
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+}
+
+type UserConnection {
+    edges: [UserEdge!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+}
+
+extend type Query {
+    users(first: Int, after: String, last: Int, before: String, filter: UserFilter): UserConnection!
+    authors(first: Int, after: String, last: Int, before: String, filter: UserFilter): UserConnection!
+    admins(first: Int, after: String, last: Int, before: String, filter: UserFilter): UserConnection!
+}
+
+extend type Mutation {
+    updateProfile(input: UpdateProfileInput!): UserProfile!
+    adminUpdateUser(id: Int!, input: AdminUpdateUserInput!): UserProfile!
+    toggleUserStatus(id: Int!, isActive: Boolean!): UserProfile!
+}

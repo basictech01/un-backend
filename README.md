@@ -11,7 +11,6 @@ A modern GraphQL-powered backend for Uttarakhand's editorial news platform built
 - **Role-based Access**: Granular permissions for authors and administrators
 - **Article Management**: Full CRUD operations with approval workflows
 - **Editorial Workflow**: Draft → Pending → Approved/Rejected status flow
-- **Region-based Content**: Filter articles by Uttarakhand regions
 - **Trending & Views**: Track article popularity and trending content
 - **Dockerized**: Complete Docker setup for development and production
 

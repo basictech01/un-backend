@@ -111,7 +111,7 @@ describe('UserRepository', () => {
         it('should return ok with insertId', async () => {
             mockQuery.mockResolvedValue([{ insertId: 42 }]);
 
-            const result = await userRepository.create('Test', 'test@test.com', 'hashedpw');
+            const result = await userRepository.create({ name: 'Test', email: 'test@test.com', passwordHash: 'hashedpw' });
             expect(result.isOk()).toBe(true);
             expect(result._unsafeUnwrap()).toBe(42);
             expect(mockQuery).toHaveBeenCalledWith(
@@ -123,7 +123,7 @@ describe('UserRepository', () => {
         it('should return err with DUPLICATE_EMAIL on duplicate entry', async () => {
             mockQuery.mockRejectedValue(new Error('ER_DUP_ENTRY'));
 
-            const result = await userRepository.create('Test', 'test@test.com', 'hashedpw');
+            const result = await userRepository.create({ name: 'Test', email: 'test@test.com', passwordHash: 'hashedpw' });
             expect(result.isErr()).toBe(true);
             expect(result._unsafeUnwrapErr().message).toBe('Email already exists');
         });
@@ -131,7 +131,7 @@ describe('UserRepository', () => {
         it('should accept custom role', async () => {
             mockQuery.mockResolvedValue([{ insertId: 1 }]);
 
-            await userRepository.create('Admin', 'admin@test.com', 'hashedpw', 'admin');
+            await userRepository.create({ name: 'Admin', email: 'admin@test.com', passwordHash: 'hashedpw', role: 'admin' });
             expect(mockQuery).toHaveBeenCalledWith(
                 expect.any(String),
                 ['Admin', 'admin@test.com', 'hashedpw', 'admin']
@@ -181,6 +181,140 @@ describe('UserRepository', () => {
                 'UPDATE users SET is_active = ? WHERE id = ?',
                 [false, 1]
             );
+        });
+    });
+
+    describe('findPaginated', () => {
+        const mockUsers = [
+            { id: 1, name: 'Alice', email: 'alice@test.com', role: 'author', is_active: true },
+            { id: 2, name: 'Bob', email: 'bob@test.com', role: 'author', is_active: true },
+            { id: 3, name: 'Charlie', email: 'charlie@test.com', role: 'admin', is_active: true },
+        ];
+
+        it('should return forward paginated users', async () => {
+            mockQuery.mockResolvedValue([mockUsers.slice(0, 2)]);
+
+            const result = await userRepository.findPaginated({ first: 2 });
+            expect(result.isOk()).toBe(true);
+            const data = result._unsafeUnwrap();
+            expect(data.users).toHaveLength(2);
+            expect(data.hasMore).toBe(false);
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('ORDER BY id ASC LIMIT ?'),
+                [3] // limit + 1
+            );
+        });
+
+        it('should detect hasMore when extra row returned', async () => {
+            // Return 3 rows for limit 2 → hasMore = true, slice to 2
+            mockQuery.mockResolvedValue([mockUsers]);
+
+            const result = await userRepository.findPaginated({ first: 2 });
+            expect(result.isOk()).toBe(true);
+            const data = result._unsafeUnwrap();
+            expect(data.users).toHaveLength(2);
+            expect(data.hasMore).toBe(true);
+        });
+
+        it('should apply after cursor for forward pagination', async () => {
+            mockQuery.mockResolvedValue([[mockUsers[2]]]);
+
+            const cursor = Buffer.from('2').toString('base64');
+            const result = await userRepository.findPaginated({ first: 10, after: cursor });
+            expect(result.isOk()).toBe(true);
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('id > ?'),
+                expect.arrayContaining([2])
+            );
+        });
+
+        it('should do backward pagination with before cursor', async () => {
+            mockQuery.mockResolvedValue([[mockUsers[0]]]);
+
+            const cursor = Buffer.from('2').toString('base64');
+            const result = await userRepository.findPaginated({ last: 10, before: cursor });
+            expect(result.isOk()).toBe(true);
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('id < ?'),
+                expect.arrayContaining([2])
+            );
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('ORDER BY id DESC'),
+                expect.anything()
+            );
+        });
+
+        it('should filter by role', async () => {
+            mockQuery.mockResolvedValue([[mockUsers[0], mockUsers[1]]]);
+
+            const result = await userRepository.findPaginated({ first: 10 }, { role: 'author' });
+            expect(result.isOk()).toBe(true);
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('role = ?'),
+                expect.arrayContaining(['author'])
+            );
+        });
+
+        it('should filter by isActive', async () => {
+            mockQuery.mockResolvedValue([[mockUsers[0]]]);
+
+            const result = await userRepository.findPaginated({ first: 10 }, { isActive: true });
+            expect(result.isOk()).toBe(true);
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('is_active = ?'),
+                expect.arrayContaining([true])
+            );
+        });
+
+        it('should filter by search term', async () => {
+            mockQuery.mockResolvedValue([[mockUsers[0]]]);
+
+            const result = await userRepository.findPaginated({ first: 10 }, { search: 'ali' });
+            expect(result.isOk()).toBe(true);
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('(name LIKE ? OR email LIKE ?)'),
+                expect.arrayContaining(['%ali%', '%ali%'])
+            );
+        });
+
+        it('should return err on database failure', async () => {
+            mockQuery.mockRejectedValue(new Error('connection lost'));
+
+            const result = await userRepository.findPaginated({ first: 10 });
+            expect(result.isErr()).toBe(true);
+        });
+    });
+
+    describe('countFiltered', () => {
+        it('should return count of users', async () => {
+            mockQuery.mockResolvedValue([[{ count: 25 }]]);
+
+            const result = await userRepository.countFiltered();
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toBe(25);
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('SELECT COUNT(*)'),
+                []
+            );
+        });
+
+        it('should apply filters to count', async () => {
+            mockQuery.mockResolvedValue([[{ count: 10 }]]);
+
+            const result = await userRepository.countFiltered({ role: 'author', isActive: true });
+            expect(result.isOk()).toBe(true);
+            expect(result._unsafeUnwrap()).toBe(10);
+            expect(mockQuery).toHaveBeenCalledWith(
+                expect.stringContaining('role = ?'),
+                expect.arrayContaining(['author', true])
+            );
+        });
+
+        it('should return err on database failure', async () => {
+            mockQuery.mockRejectedValue(new Error('connection lost'));
+
+            const result = await userRepository.countFiltered();
+            expect(result.isErr()).toBe(true);
         });
     });
 });
