@@ -1,0 +1,46 @@
+scalar DateTime
+scalar JSON
+
+input SignupInput {
+    name: String!
+    email: String!
+    password: String!
+    role: String
+}
+
+input LoginInput {
+    email: String!
+    password: String!
+}
+
+type UserProfile {
+    id: Int!
+    name: String!
+    email: String!
+    bio: String
+    profession: String
+    profile_photo: String
+    role: String!
+    is_active: Boolean!
+    created_at: DateTime!
+}
+
+type AuthPayload {
+    token: String!
+    refreshToken: String!
+    user: UserProfile!
+}
+
+type RefreshPayload {
+    token: String!
+}
+
+type Query {
+    me: UserProfile!
+}
+
+type Mutation {
+    signup(input: SignupInput!): AuthPayload!
+    login(input: LoginInput!): AuthPayload!
+    refreshToken(token: String!): RefreshPayload!
+}
