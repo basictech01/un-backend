@@ -8,27 +8,13 @@ const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 10;
 
 function validatePaginationArgs(args: PaginationArgs): PaginationArgs {
-    const { first, after, last, before } = args;
+    const { first, after } = args;
 
-    // Cannot use both forward and backward at the same time
-    if (first != null && last != null) {
-        throw toGraphQLError(ERRORS.PAGINATION_CONFLICTING_ARGS);
-    }
-
-    // Validate limits
     if (first != null && (first < 1 || first > MAX_PAGE_SIZE)) {
         throw toGraphQLError(ERRORS.PAGINATION_LIMIT_EXCEEDED);
     }
-    if (last != null && (last < 1 || last > MAX_PAGE_SIZE)) {
-        throw toGraphQLError(ERRORS.PAGINATION_LIMIT_EXCEEDED);
-    }
 
-    // Default to forward pagination
-    if (first == null && last == null) {
-        return { first: DEFAULT_PAGE_SIZE, after, last, before };
-    }
-
-    return { first, after, last, before };
+    return { first: first ?? DEFAULT_PAGE_SIZE, after };
 }
 
 async function resolveUserConnection(
@@ -43,8 +29,7 @@ async function resolveUserConnection(
     }
 
     const { users, hasMore } = result.value;
-    const direction = validatedArgs.last ? 'backward' : 'forward';
-    const connection = buildConnection<User>(users, hasMore, direction);
+    const connection = buildConnection<User>(users, hasMore);
 
     const countResult = await userRepository.countFiltered(filter);
     if (countResult.isErr()) {
@@ -62,21 +47,21 @@ export const userResolvers = {
     Query: {
         users: async (_: unknown, args: UsersPaginationInput, context: GraphQLContext) => {
             requireAdmin(context);
-            const { first, after, last, before, filter } = args;
-            return resolveUserConnection({ first, after, last, before }, filter);
+            const { first, after, filter } = args;
+            return resolveUserConnection({ first, after }, filter);
         },
 
         authors: async (_: unknown, args: UsersPaginationInput) => {
-            const { first, after, last, before, filter } = args;
+            const { first, after, filter } = args;
             const mergedFilter: UserFilter = { ...filter, role: 'author' };
-            return resolveUserConnection({ first, after, last, before }, mergedFilter);
+            return resolveUserConnection({ first, after }, mergedFilter);
         },
 
         admins: async (_: unknown, args: UsersPaginationInput, context: GraphQLContext) => {
             requireAdmin(context);
-            const { first, after, last, before, filter } = args;
+            const { first, after, filter } = args;
             const mergedFilter: UserFilter = { ...filter, role: 'admin' };
-            return resolveUserConnection({ first, after, last, before }, mergedFilter);
+            return resolveUserConnection({ first, after }, mergedFilter);
         },
     },
 

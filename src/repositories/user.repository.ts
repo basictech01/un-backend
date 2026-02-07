@@ -145,33 +145,22 @@ class UserRepository {
     ): Promise<Result<{ users: User[]; hasMore: boolean }, RequestError>> {
         try {
             const { clauses, params } = this.buildFilterClauses(filter);
-            const isBackward = !!pagination.last;
-            const limit = (isBackward ? pagination.last! : pagination.first!) || 10;
+            const limit = pagination.first || 10;
 
-            if (isBackward && pagination.before) {
-                const cursorId = decodeCursor(pagination.before);
-                clauses.push('id < ?');
-                params.push(cursorId);
-            } else if (!isBackward && pagination.after) {
+            if (pagination.after) {
                 const cursorId = decodeCursor(pagination.after);
                 clauses.push('id > ?');
                 params.push(cursorId);
             }
 
             const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
-            const orderDir = isBackward ? 'DESC' : 'ASC';
-            const sql = `SELECT id, name, email, bio, profession, profile_photo, role, is_active, created_at FROM users ${where} ORDER BY id ${orderDir} LIMIT ?`;
+            const sql = `SELECT id, name, email, bio, profession, profile_photo, role, is_active, created_at FROM users ${where} ORDER BY id ASC LIMIT ?`;
             params.push(limit + 1);
 
             const [rows] = await db.query<User[]>(sql, params);
 
             const hasMore = rows.length > limit;
             const users = hasMore ? rows.slice(0, limit) : rows;
-
-            // For backward pagination, reverse to get ascending order
-            if (isBackward) {
-                users.reverse();
-            }
 
             return ok({ users, hasMore });
         } catch (error) {

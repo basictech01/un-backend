@@ -28,9 +28,9 @@ describe('Pagination Helpers', () => {
         const makeNodes = (ids: number[]) =>
             ids.map(id => ({ id, name: `User ${id}`, email: `user${id}@test.com` }));
 
-        it('should build forward connection with hasMore', () => {
+        it('should build connection with hasNextPage', () => {
             const nodes = makeNodes([1, 2, 3]);
-            const conn = buildConnection(nodes, true, 'forward');
+            const conn = buildConnection(nodes, true);
 
             expect(conn.edges).toHaveLength(3);
             expect(conn.edges[0].node.id).toBe(1);
@@ -38,38 +38,24 @@ describe('Pagination Helpers', () => {
             expect(conn.edges[0].cursor).toBe(encodeCursor(1));
             expect(conn.edges[2].cursor).toBe(encodeCursor(3));
             expect(conn.pageInfo.hasNextPage).toBe(true);
-            expect(conn.pageInfo.hasPreviousPage).toBe(false);
             expect(conn.pageInfo.startCursor).toBe(encodeCursor(1));
             expect(conn.pageInfo.endCursor).toBe(encodeCursor(3));
         });
 
-        it('should build forward connection without hasMore', () => {
+        it('should build connection without hasNextPage', () => {
             const nodes = makeNodes([1, 2]);
-            const conn = buildConnection(nodes, false, 'forward');
+            const conn = buildConnection(nodes, false);
 
             expect(conn.pageInfo.hasNextPage).toBe(false);
-            expect(conn.pageInfo.hasPreviousPage).toBe(false);
-        });
-
-        it('should build backward connection with hasMore', () => {
-            const nodes = makeNodes([4, 5, 6]);
-            const conn = buildConnection(nodes, true, 'backward');
-
-            expect(conn.edges).toHaveLength(3);
-            expect(conn.pageInfo.hasNextPage).toBe(false);
-            expect(conn.pageInfo.hasPreviousPage).toBe(true);
-            expect(conn.pageInfo.startCursor).toBe(encodeCursor(4));
-            expect(conn.pageInfo.endCursor).toBe(encodeCursor(6));
         });
 
         it('should handle empty nodes', () => {
-            const conn = buildConnection([], false, 'forward');
+            const conn = buildConnection([], false);
 
             expect(conn.edges).toHaveLength(0);
             expect(conn.pageInfo.startCursor).toBeNull();
             expect(conn.pageInfo.endCursor).toBeNull();
             expect(conn.pageInfo.hasNextPage).toBe(false);
-            expect(conn.pageInfo.hasPreviousPage).toBe(false);
         });
     });
 });

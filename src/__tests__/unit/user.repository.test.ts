@@ -300,17 +300,6 @@ describe('UserRepository', () => {
             expect(data.users).toHaveLength(3);
         });
 
-        it('should do backward pagination with before cursor', async () => {
-            const cursor = Buffer.from('4').toString('base64');
-            const result = await userRepository.findPaginated({ last: 2, before: cursor });
-            expect(result.isOk()).toBe(true);
-            const data = result._unsafeUnwrap();
-            // Should return users with id < 4, last 2, in ascending order
-            expect(data.users).toHaveLength(2);
-            expect(data.users[0].id).toBe(2);
-            expect(data.users[1].id).toBe(3);
-        });
-
         it('should filter by role', async () => {
             const result = await userRepository.findPaginated({ first: 10 }, { role: 'author' });
             expect(result.isOk()).toBe(true);

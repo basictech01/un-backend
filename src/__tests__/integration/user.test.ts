@@ -176,7 +176,7 @@ describe('User Management Integration', () => {
             query($first: Int, $after: String) {
                 users(first: $first, after: $after) {
                     edges { cursor node { id name email role } }
-                    pageInfo { startCursor endCursor hasNextPage hasPreviousPage }
+                    pageInfo { startCursor endCursor hasNextPage }
                     totalCount
                 }
             }
