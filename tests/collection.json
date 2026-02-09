@@ -1,0 +1,919 @@
+{
+  "info": {
+    "name": "Un-Backend Complete App Tests",
+    "description": "Complete end-to-end test suite for user management and article management API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authentication & User Signup",
+      "item": [
+        {
+          "name": "Signup Author 1",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Author 1 signup successful\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.signup.token).to.exist;",
+                  "  pm.expect(res.data.signup.refreshToken).to.exist;",
+                  "  pm.expect(res.data.signup.user.id).to.exist;",
+                  "  pm.expect(res.data.signup.user.name).to.equal('Author One');",
+                  "  pm.expect(res.data.signup.user.role).to.equal('author');",
+                  "  pm.environment.set('author1_token', res.data.signup.token);",
+                  "  pm.environment.set('author1_refresh_token', res.data.signup.refreshToken);",
+                  "  pm.environment.set('author1_id', res.data.signup.user.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { signup(input: {name: \\\"Author One\\\", email: \\\"author1-{{$timestamp}}@test.com\\\", password: \\\"password123\\\"}) { token refreshToken user { id name email role } } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Signup Author 2",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Author 2 signup successful\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.signup.token).to.exist;",
+                  "  pm.environment.set('author2_token', res.data.signup.token);",
+                  "  pm.environment.set('author2_id', res.data.signup.user.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { signup(input: {name: \\\"Author Two\\\", email: \\\"author2-{{$timestamp}}@test.com\\\", password: \\\"password123\\\"}) { token refreshToken user { id name email role } } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Signup Invalid Email (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Invalid signup rejected\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { signup(input: {name: \\\"\\\", email: \\\"test@test.com\\\", password: \\\"password123\\\"}) { token user { id } } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Auth Token & Profile Access",
+      "item": [
+        {
+          "name": "Get Current User (me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Get current user successful\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.me.id).to.exist;",
+                  "  pm.expect(res.data.me.name).to.equal('Author One');",
+                  "  pm.expect(res.data.me.email).to.exist;",
+                  "  pm.expect(res.data.me.role).to.equal('author');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"query { me { id name email bio profession role is_active created_at } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Get User Without Auth (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Unauthorized request rejected\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.exist;",
+                  "  pm.expect(res.errors[0].message).to.include('Unauthorized');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"query { me { id name } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Refresh token successful\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.refreshToken.token).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { refreshToken(token: \\\"{{author1_refresh_token}}\\\") { token } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. User Profile Management",
+      "item": [
+        {
+          "name": "Update Own Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Profile updated successfully\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.updateProfile.bio).to.equal('Passionate writer');",
+                  "  pm.expect(res.data.updateProfile.profession).to.equal('Journalist');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { updateProfile(input: {bio: \\\"Passionate writer\\\", profession: \\\"Journalist\\\"}) { id name bio profession } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile Photo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Profile photo updated\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.updateProfile.profile_photo).to.include('https://');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { updateProfile(input: {profile_photo: \\\"https://example.com/photo.jpg\\\"}) { id profile_photo } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Get All Authors",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Authors list retrieved\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.authors.edges).to.be.an('array');",
+                  "  pm.expect(res.data.authors.totalCount).to.be.at.least(2);",
+                  "  pm.expect(res.data.authors.pageInfo).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"query { authors(first: 10) { edges { node { id name email bio profession role } } totalCount pageInfo { hasNextPage } } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Article Creation",
+      "item": [
+        {
+          "name": "Create Draft Article",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Draft article created\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.createArticle.id).to.exist;",
+                  "  pm.expect(res.data.createArticle.status).to.equal('draft');",
+                  "  pm.expect(res.data.createArticle.author_name).to.equal('Author One');",
+                  "  pm.environment.set('article_id', res.data.createArticle.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { createArticle(input: {title: \\\"My First Article\\\", content: \\\"This is the content of my article.\\\", section: \\\"VOICES_AND_VISIONARIES\\\", subsections: [\\\"CHARISMA\\\"]}) { id title status author_name section } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Invalid Section (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Invalid section rejected\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.exist;",
+                  "  pm.expect(res.errors[0].message).to.include('Invalid section');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { createArticle(input: {title: \\\"Bad\\\", content: \\\"content\\\", section: \\\"INVALID_SECTION\\\", subsections: [\\\"CHARISMA\\\"]}) { id } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Article Management",
+      "item": [
+        {
+          "name": "Update Draft Article",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Article updated\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.updateArticle.title).to.equal('Updated Title');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { updateArticle(id: {{article_id}}, input: {title: \\\"Updated Title\\\", content: \\\"Updated content here.\\\"}) { id title content } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Submit Article for Review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Article submitted for review\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.submitArticle.status).to.equal('pending');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { submitArticle(id: {{article_id}}) { id status } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Approved Articles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Approved articles retrieved\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.approvedArticles.edges).to.be.an('array');",
+                  "  pm.expect(res.data.approvedArticles.totalCount).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"query { approvedArticles(first: 10) { edges { node { id title author_name section } } totalCount pageInfo { hasNextPage } } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Get My Articles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"My articles retrieved\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.myArticles.edges).to.be.an('array');",
+                  "  pm.expect(res.data.myArticles.totalCount).to.be.at.least(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"query { myArticles(first: 10) { edges { node { id title status } } totalCount } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Search Articles by Author",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Search returned results or empty\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.approvedArticles).to.be.an('object');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"query { approvedArticles(first: 10, filter: {search: \\\"Author\\\"}) { edges { node { id title author_name } } totalCount } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Permission & Access Control",
+      "item": [
+        {
+          "name": "Create Draft for Deletion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Draft article for deletion created\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.createArticle.id).to.exist;",
+                  "  pm.environment.set('article_delete_id', res.data.createArticle.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { createArticle(input: {title: \\\"Draft to Delete\\\", content: \\\"This article will be deleted.\\\", section: \\\"VOICES_AND_VISIONARIES\\\", subsections: [\\\"CHARISMA\\\"]}) { id title status } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Non-Owner Cannot Update Article",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Non-owner rejected\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 429]);",
+                  "  if (pm.response.code === 200) {",
+                  "    const res = pm.response.json();",
+                  "    pm.expect(res.errors).to.exist;",
+                  "    pm.expect(res.errors[0].message).to.include('do not own');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author2_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { updateArticle(id: {{article_id}}, input: {title: \\\"Hacked\\\"}) { id } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Unauthenticated Article Creation (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Unauthorized request rejected\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.exist;",
+                  "  pm.expect(res.errors[0].message).to.include('Unauthorized');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { createArticle(input: {title: \\\"Test\\\", content: \\\"test\\\", section: \\\"VOICES_AND_VISIONARIES\\\", subsections: [\\\"CHARISMA\\\"]}) { id } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Own Draft Article",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Article deleted\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.deleteArticle.id).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { deleteArticle(id: {{article_delete_id}}) { id title } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Author Cannot Access Admin Operations",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Admin operation rejected for author\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.exist;",
+                  "  pm.expect(res.errors[0].message).to.include('Admin');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{author1_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"query { users(first: 10) { edges { node { id name } } totalCount } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Article Trending & Views",
+      "item": [
+        {
+          "name": "Increment Article Views",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Views incremented\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.incrementViews).to.equal(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"mutation { incrementViews(id: {{article_id}}) }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Trending Articles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Trending articles retrieved\", function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "  const res = pm.response.json();",
+                  "  pm.expect(res.errors).to.be.undefined;",
+                  "  pm.expect(res.data.trendingArticles.edges).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"query\": \"query { trendingArticles(first: 10) { edges { node { id title author_name } } pageInfo { hasNextPage } } }\"}"
+            },
+            "url": {
+              "raw": "{{graphql_endpoint}}",
+              "host": ["{{graphql_endpoint}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
