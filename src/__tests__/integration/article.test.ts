@@ -237,7 +237,7 @@ describe('Article Management Integration', () => {
             mutation($input: CreateArticleInput!) {
                 createArticle(input: $input) {
                     id title content section subsections status published_at author_id
-                    author_name author_bio author_profession
+                    author { name bio profession }
                 }
             }
         `;
@@ -259,7 +259,7 @@ describe('Article Management Integration', () => {
             expect(res.body.data.createArticle.status).toBe('draft');
             expect(res.body.data.createArticle.author_id).toBe(2);
             expect(res.body.data.createArticle.published_at).toBeNull();
-            expect(res.body.data.createArticle.author_name).toBe('Author One');
+            expect(res.body.data.createArticle.author.name).toBe('Author One');
         });
 
         it('should create an auto-approved article for admin', async () => {
@@ -658,7 +658,7 @@ describe('Article Management Integration', () => {
         const approvedQuery = `
             query($first: Int, $after: String, $filter: ArticleFilter) {
                 approvedArticles(first: $first, after: $after, filter: $filter) {
-                    edges { cursor node { id title section status author_name author_bio author_profession } }
+                    edges { cursor node { id title section status author { name bio profession } } }
                     pageInfo { startCursor endCursor hasNextPage }
                     totalCount
                 }
@@ -676,7 +676,7 @@ describe('Article Management Integration', () => {
             expect(res.body.data.approvedArticles.totalCount).toBe(2);
             // Verify author info present
             res.body.data.approvedArticles.edges.forEach((e: any) => {
-                expect(e.node.author_name).toBeDefined();
+                expect(e.node.author.name).toBeDefined();
             });
         });
 
@@ -710,7 +710,7 @@ describe('Article Management Integration', () => {
 
             expect(res.body.errors).toBeUndefined();
             expect(res.body.data.approvedArticles.edges).toHaveLength(1);
-            expect(res.body.data.approvedArticles.edges[0].node.author_name).toBe('Author Two');
+            expect(res.body.data.approvedArticles.edges[0].node.author.name).toBe('Author Two');
         });
 
         it('should filter by search (section name)', async () => {
@@ -809,7 +809,7 @@ describe('Article Management Integration', () => {
             query($id: Int!) {
                 article(id: $id) {
                     id title status
-                    author_name author_bio author_profession author_profile_photo
+                    author { name bio profession profile_photo }
                 }
             }
         `;
@@ -822,10 +822,10 @@ describe('Article Management Integration', () => {
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
             expect(res.body.data.article.title).toBe('Approved Article');
-            expect(res.body.data.article.author_name).toBe('Author One');
-            expect(res.body.data.article.author_bio).toBe('Bio of Author One');
-            expect(res.body.data.article.author_profession).toBe('Writer');
-            expect(res.body.data.article.author_profile_photo).toBe('photo1.jpg');
+            expect(res.body.data.article.author.name).toBe('Author One');
+            expect(res.body.data.article.author.bio).toBe('Bio of Author One');
+            expect(res.body.data.article.author.profession).toBe('Writer');
+            expect(res.body.data.article.author.profile_photo).toBe('photo1.jpg');
         });
 
         it('should return author info for different author', async () => {
@@ -833,9 +833,9 @@ describe('Article Management Integration', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.errors).toBeUndefined();
-            expect(res.body.data.article.author_name).toBe('Author Two');
-            expect(res.body.data.article.author_profession).toBe('Journalist');
-            expect(res.body.data.article.author_profile_photo).toBeNull();
+            expect(res.body.data.article.author.name).toBe('Author Two');
+            expect(res.body.data.article.author.profession).toBe('Journalist');
+            expect(res.body.data.article.author.profile_photo).toBeNull();
         });
 
         it('should not return non-approved article', async () => {
@@ -860,7 +860,7 @@ describe('Article Management Integration', () => {
         const trendingQuery = `
             query($first: Int) {
                 trendingArticles(first: $first) {
-                    edges { node { id title author_name author_profession } }
+                    edges { node { id title author { name profession } } }
                     totalCount
                 }
             }
@@ -877,9 +877,9 @@ describe('Article Management Integration', () => {
             expect(edges).toHaveLength(2);
             // Article 4 has 250 views, article 3 has 100
             expect(edges[0].node.id).toBe(4);
-            expect(edges[0].node.author_name).toBe('Author Two');
+            expect(edges[0].node.author.name).toBe('Author Two');
             expect(edges[1].node.id).toBe(3);
-            expect(edges[1].node.author_name).toBe('Author One');
+            expect(edges[1].node.author.name).toBe('Author One');
         });
     });
 

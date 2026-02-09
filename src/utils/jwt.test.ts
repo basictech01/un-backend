@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { jest } from '@jest/globals';
 
 // Mock env before importing jwt utils
-jest.unstable_mockModule('../../config/env.ts', () => ({
+jest.unstable_mockModule('../config/env.ts', () => ({
     JWT_SECRET: 'test-secret',
     JWT_EXPIRES_IN: '1h',
     JWT_REFRESH_SECRET: 'test-refresh-secret',
@@ -10,7 +10,7 @@ jest.unstable_mockModule('../../config/env.ts', () => ({
 }));
 
 // Mock error.ts
-jest.unstable_mockModule('../../utils/error.ts', () => ({
+jest.unstable_mockModule('./error.ts', () => ({
     ERRORS: {
         INVALID_AUTH_TOKEN: new Error('Invalid authentication token'),
         TOKEN_EXPIRED: new Error('Authentication token has expired'),
@@ -19,8 +19,8 @@ jest.unstable_mockModule('../../utils/error.ts', () => ({
 }));
 
 const { createAuthToken, createRefreshToken, decodeAuthToken, decodeRefreshToken } =
-    await import('../../utils/jwt.ts');
-const { ERRORS } = await import('../../utils/error.ts');
+    await import('./jwt.ts');
+const { ERRORS } = await import('./error.ts');
 
 describe('JWT Utilities', () => {
     const mockUser = { userId: 1, email: 'test@test.com', is_admin: false };

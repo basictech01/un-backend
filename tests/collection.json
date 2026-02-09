@@ -377,7 +377,7 @@
                   "  pm.expect(res.errors).to.be.undefined;",
                   "  pm.expect(res.data.createArticle.id).to.exist;",
                   "  pm.expect(res.data.createArticle.status).to.equal('draft');",
-                  "  pm.expect(res.data.createArticle.author_name).to.equal('Author One');",
+                  "  pm.expect(res.data.createArticle.author.name).to.equal('Author One');",
                   "  pm.environment.set('article_id', res.data.createArticle.id);",
                   "});"
                 ]
@@ -398,7 +398,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"query\": \"mutation { createArticle(input: {title: \\\"My First Article\\\", content: \\\"This is the content of my article.\\\", section: \\\"VOICES_AND_VISIONARIES\\\", subsections: [\\\"CHARISMA\\\"]}) { id title status author_name section } }\"}"
+              "raw": "{\"query\": \"mutation { createArticle(input: {title: \\\"My First Article\\\", content: \\\"This is the content of my article.\\\", section: \\\"VOICES_AND_VISIONARIES\\\", subsections: [\\\"CHARISMA\\\"]}) { id title status author { name } section } }\"}"
             },
             "url": {
               "raw": "{{graphql_endpoint}}",
@@ -556,7 +556,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"query\": \"query { approvedArticles(first: 10) { edges { node { id title author_name section } } totalCount pageInfo { hasNextPage } } }\"}"
+              "raw": "{\"query\": \"query { approvedArticles(first: 10) { edges { node { id title author { name } section } } totalCount pageInfo { hasNextPage } } }\"}"
             },
             "url": {
               "raw": "{{graphql_endpoint}}",
@@ -631,7 +631,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"query\": \"query { approvedArticles(first: 10, filter: {search: \\\"Author\\\"}) { edges { node { id title author_name } } totalCount } }\"}"
+              "raw": "{\"query\": \"query { approvedArticles(first: 10, filter: {search: \\\"Author\\\"}) { edges { node { id title author { name } } } totalCount } }\"}"
             },
             "url": {
               "raw": "{{graphql_endpoint}}",
@@ -905,7 +905,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\"query\": \"query { trendingArticles(first: 10) { edges { node { id title author_name } } pageInfo { hasNextPage } } }\"}"
+              "raw": "{\"query\": \"query { trendingArticles(first: 10) { edges { node { id title author { name } } } pageInfo { hasNextPage } } }\"}"
             },
             "url": {
               "raw": "{{graphql_endpoint}}",

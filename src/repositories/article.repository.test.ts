@@ -12,12 +12,12 @@ const poolProxy = new Proxy({} as any, {
     get(_target, prop) { return mockPool[prop]; },
 });
 
-jest.unstable_mockModule('../../database/db.ts', () => ({
+jest.unstable_mockModule('../database/db.ts', () => ({
     db: poolProxy,
     connectToDatabase: jest.fn(),
 }));
 
-jest.unstable_mockModule('../../config/env.ts', () => ({
+jest.unstable_mockModule('../config/env.ts', () => ({
     PORT: '4000',
     NODE_ENV: 'test',
     CORS_ORIGIN: '*',
@@ -37,7 +37,7 @@ jest.unstable_mockModule('../../config/env.ts', () => ({
     DB_PORT: 3306,
 }));
 
-jest.unstable_mockModule('../../utils/logger.ts', () => ({
+jest.unstable_mockModule('../utils/logger.ts', () => ({
     default: () => ({
         info: jest.fn(),
         warn: jest.fn(),
@@ -46,7 +46,7 @@ jest.unstable_mockModule('../../utils/logger.ts', () => ({
     }),
 }));
 
-const { articleRepository } = await import('../../repositories/article.repository.ts');
+const { articleRepository } = await import('./article.repository.ts');
 
 // --- DB setup/teardown helpers ---
 
@@ -214,8 +214,7 @@ describe('ArticleRepository', () => {
             expect(article.title).toBe('New Article');
             expect(article.section).toBe('VOICES_AND_VISIONARIES');
             expect(article.status).toBe('draft');
-            // Author info populated via JOIN
-            expect(article.author_name).toBe('Author One');
+            expect(article.author_id).toBe(2);
 
             // Verify JSON subsections in DB
             const dbArticle = await findArticleById(article.id);
@@ -241,27 +240,21 @@ describe('ArticleRepository', () => {
     });
 
     describe('findById', () => {
-        it('should return article with author info when found', async () => {
+        it('should return article when found', async () => {
             const result = await articleRepository.findById(1);
             expect(result.isOk()).toBe(true);
             const article = result._unsafeUnwrap();
             expect(article).not.toBeNull();
             expect(article!.title).toBe('Draft Article');
-            // Author info via JOIN
-            expect(article!.author_name).toBe('Author One');
-            expect(article!.author_bio).toBe('Bio of Author One');
-            expect(article!.author_profession).toBe('Writer');
-            expect(article!.author_profile_photo).toBe('photo1.jpg');
+            expect(article!.author_id).toBe(2);
         });
 
-        it('should return author info for different author', async () => {
+        it('should return article for different author', async () => {
             const result = await articleRepository.findById(4);
             expect(result.isOk()).toBe(true);
             const article = result._unsafeUnwrap();
             expect(article).not.toBeNull();
-            expect(article!.author_name).toBe('Author Two');
-            expect(article!.author_profession).toBe('Journalist');
-            expect(article!.author_profile_photo).toBeNull();
+            expect(article!.author_id).toBe(3);
         });
 
         it('should return null when not found', async () => {
@@ -384,7 +377,7 @@ describe('ArticleRepository', () => {
     });
 
     describe('findPaginated', () => {
-        it('should return paginated articles excluding drafts with author info', async () => {
+        it('should return paginated articles excluding drafts', async () => {
             const result = await articleRepository.findPaginated({ first: 10 });
             expect(result.isOk()).toBe(true);
             const data = result._unsafeUnwrap();
@@ -392,7 +385,6 @@ describe('ArticleRepository', () => {
             expect(data.articles).toHaveLength(4);
             data.articles.forEach((a: any) => {
                 expect(a.status).not.toBe('draft');
-                expect(a.author_name).toBeDefined();
             });
         });
 
@@ -443,7 +435,7 @@ describe('ArticleRepository', () => {
             const data = result._unsafeUnwrap();
             // Author Two has articles 4 (approved) and 5 (rejected) — both non-draft
             expect(data.articles).toHaveLength(2);
-            data.articles.forEach((a: any) => expect(a.author_name).toBe('Author Two'));
+            data.articles.forEach((a: any) => expect(a.author_id).toBe(3));
         });
 
         it('should filter by search (section name)', async () => {
@@ -536,16 +528,7 @@ describe('ArticleRepository', () => {
             expect(result.isOk()).toBe(true);
             const data = result._unsafeUnwrap();
             expect(data.articles).toHaveLength(1);
-            expect(data.articles[0].author_name).toBe('Author Two');
-        });
-
-        it('should include author info in results', async () => {
-            const result = await articleRepository.findApprovedPaginated({ first: 10 });
-            expect(result.isOk()).toBe(true);
-            const data = result._unsafeUnwrap();
-            data.articles.forEach((a: any) => {
-                expect(a.author_name).toBeDefined();
-            });
+            expect(data.articles[0].author_id).toBe(3);
         });
     });
 
@@ -587,8 +570,7 @@ describe('ArticleRepository', () => {
             const data = result._unsafeUnwrap();
             expect(data.articles).toHaveLength(1);
             expect(data.articles[0].title).toBe('Approved Article One');
-            // Should include author info
-            expect(data.articles[0].author_name).toBe('Author One');
+            expect(data.articles[0].author_id).toBe(2);
         });
 
         it('should search by content', async () => {
@@ -605,7 +587,7 @@ describe('ArticleRepository', () => {
             const data = result._unsafeUnwrap();
             // Author Two has 1 approved article (id=4)
             expect(data.articles).toHaveLength(1);
-            expect(data.articles[0].author_name).toBe('Author Two');
+            expect(data.articles[0].author_id).toBe(3);
         });
 
         it('should search by section name', async () => {

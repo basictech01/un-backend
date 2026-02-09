@@ -12,12 +12,12 @@ const poolProxy = new Proxy({} as any, {
     get(_target, prop) { return mockPool[prop]; },
 });
 
-jest.unstable_mockModule('../../database/db.ts', () => ({
+jest.unstable_mockModule('../database/db.ts', () => ({
     db: poolProxy,
     connectToDatabase: jest.fn(),
 }));
 
-jest.unstable_mockModule('../../config/env.ts', () => ({
+jest.unstable_mockModule('../config/env.ts', () => ({
     PORT: '4000',
     NODE_ENV: 'test',
     CORS_ORIGIN: '*',
@@ -37,7 +37,7 @@ jest.unstable_mockModule('../../config/env.ts', () => ({
     DB_PORT: 3306,
 }));
 
-jest.unstable_mockModule('../../utils/logger.ts', () => ({
+jest.unstable_mockModule('../utils/logger.ts', () => ({
     default: () => ({
         info: jest.fn(),
         warn: jest.fn(),
@@ -46,7 +46,7 @@ jest.unstable_mockModule('../../utils/logger.ts', () => ({
     }),
 }));
 
-const { userRepository } = await import('../../repositories/user.repository.ts');
+const { userRepository } = await import('./user.repository.ts');
 
 // --- DB setup/teardown helpers ---
 

@@ -7,7 +7,7 @@ jest.unstable_mockModule('../../repositories/user.repository.ts', () => ({
     userRepository: { findByIds: mockFindByIds },
 }));
 
-const { createUserLoader } = await import('../../graphql/loaders/user.loader.ts');
+const { createUserLoader } = await import('./user.loader.ts');
 
 describe('User DataLoader', () => {
     beforeEach(() => {

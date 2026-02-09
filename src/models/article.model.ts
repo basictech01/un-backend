@@ -14,11 +14,6 @@ export interface Article extends RowDataPacket {
     published_at: Date | null;
     created_at: Date;
     updated_at: Date;
-    // Author info (populated via JOIN)
-    author_name: string | null;
-    author_bio: string | null;
-    author_profession: string | null;
-    author_profile_photo: string | null;
 }
 
 export type ArticleStatus = 'draft' | 'pending' | 'approved' | 'rejected';

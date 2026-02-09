@@ -41,11 +41,7 @@ class ArticleRepository {
     async findById(id: number): Promise<Result<Article | null, RequestError>> {
         try {
             const [rows] = await db.query<Article[]>(
-                `SELECT a.*, u.name AS author_name, u.bio AS author_bio,
-                        u.profession AS author_profession, u.profile_photo AS author_profile_photo
-                 FROM articles a
-                 JOIN users u ON a.author_id = u.id
-                 WHERE a.id = ?`,
+                'SELECT * FROM articles WHERE id = ?',
                 [id],
             );
             return ok(rows[0] || null);
@@ -139,9 +135,10 @@ class ArticleRepository {
         }
     }
 
-    private buildFilterClauses(filter?: ArticleFilter): { clauses: string[]; params: unknown[] } {
+    private buildFilterClauses(filter?: ArticleFilter): { clauses: string[]; params: unknown[]; needsUserJoin: boolean } {
         const clauses: string[] = [];
         const params: unknown[] = [];
+        let needsUserJoin = false;
 
         if (filter?.status) {
             clauses.push('a.status = ?');
@@ -159,9 +156,10 @@ class ArticleRepository {
             clauses.push('(a.title LIKE ? OR a.content LIKE ? OR a.section LIKE ? OR a.subsections LIKE ? OR u.name LIKE ?)');
             const term = `%${filter.search}%`;
             params.push(term, term, term, term, term);
+            needsUserJoin = true;
         }
 
-        return { clauses, params };
+        return { clauses, params, needsUserJoin };
     }
 
     async findPaginated(
@@ -169,7 +167,7 @@ class ArticleRepository {
         filter?: ArticleFilter,
     ): Promise<Result<{ articles: Article[]; hasMore: boolean }, RequestError>> {
         try {
-            const { clauses, params } = this.buildFilterClauses(filter);
+            const { clauses, params, needsUserJoin } = this.buildFilterClauses(filter);
             const limit = pagination.first || 10;
 
             // Exclude drafts for admin listing (unless filtered by specific status)
@@ -184,11 +182,8 @@ class ArticleRepository {
             }
 
             const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
-            const sql = `SELECT a.*, u.name AS author_name, u.bio AS author_bio,
-                                u.profession AS author_profession, u.profile_photo AS author_profile_photo
-                         FROM articles a
-                         JOIN users u ON a.author_id = u.id
-                         ${where} ORDER BY a.id ASC LIMIT ?`;
+            const join = needsUserJoin ? 'JOIN users u ON a.author_id = u.id' : '';
+            const sql = `SELECT a.* FROM articles a ${join} ${where} ORDER BY a.id ASC LIMIT ?`;
             params.push(limit + 1);
 
             const [rows] = await db.query<Article[]>(sql, params);
@@ -205,14 +200,15 @@ class ArticleRepository {
 
     async countFiltered(filter?: ArticleFilter): Promise<Result<number, RequestError>> {
         try {
-            const { clauses, params } = this.buildFilterClauses(filter);
+            const { clauses, params, needsUserJoin } = this.buildFilterClauses(filter);
 
             if (!filter?.status) {
                 clauses.push("a.status != 'draft'");
             }
 
             const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
-            const sql = `SELECT COUNT(*) as count FROM articles a JOIN users u ON a.author_id = u.id ${where}`;
+            const join = needsUserJoin ? 'JOIN users u ON a.author_id = u.id' : '';
+            const sql = `SELECT COUNT(*) as count FROM articles a ${join} ${where}`;
 
             const [rows] = await db.query<(RowDataPacket & { count: number })[]>(sql, params);
             return ok(rows[0].count);
@@ -238,11 +234,7 @@ class ArticleRepository {
             }
 
             const where = `WHERE ${clauses.join(' AND ')}`;
-            const sql = `SELECT a.*, u.name AS author_name, u.bio AS author_bio,
-                                u.profession AS author_profession, u.profile_photo AS author_profile_photo
-                         FROM articles a
-                         JOIN users u ON a.author_id = u.id
-                         ${where} ORDER BY a.id ASC LIMIT ?`;
+            const sql = `SELECT a.* FROM articles a ${where} ORDER BY a.id ASC LIMIT ?`;
             params.push(limit + 1);
 
             const [rows] = await db.query<Article[]>(sql, params);
@@ -285,11 +277,7 @@ class ArticleRepository {
             }
 
             const where = `WHERE ${clauses.join(' AND ')}`;
-            const sql = `SELECT a.*, u.name AS author_name, u.bio AS author_bio,
-                                u.profession AS author_profession, u.profile_photo AS author_profile_photo
-                         FROM articles a
-                         JOIN users u ON a.author_id = u.id
-                         ${where} ORDER BY a.id ASC LIMIT ?`;
+            const sql = `SELECT a.* FROM articles a ${where} ORDER BY a.id ASC LIMIT ?`;
             params.push(limit + 1);
 
             const [rows] = await db.query<Article[]>(sql, params);
@@ -324,6 +312,7 @@ class ArticleRepository {
             const limit = pagination.first || 10;
             const clauses: string[] = ["a.status = 'approved'"];
             const params: unknown[] = [];
+            let needsUserJoin = false;
 
             if (filter?.section) {
                 clauses.push('a.section = ?');
@@ -333,6 +322,7 @@ class ArticleRepository {
                 clauses.push('(a.title LIKE ? OR a.content LIKE ? OR a.section LIKE ? OR a.subsections LIKE ? OR u.name LIKE ?)');
                 const term = `%${filter.search}%`;
                 params.push(term, term, term, term, term);
+                needsUserJoin = true;
             }
 
             if (pagination.after) {
@@ -342,11 +332,8 @@ class ArticleRepository {
             }
 
             const where = `WHERE ${clauses.join(' AND ')}`;
-            const sql = `SELECT a.*, u.name AS author_name, u.bio AS author_bio,
-                                u.profession AS author_profession, u.profile_photo AS author_profile_photo
-                         FROM articles a
-                         JOIN users u ON a.author_id = u.id
-                         ${where} ORDER BY a.id ASC LIMIT ?`;
+            const join = needsUserJoin ? 'JOIN users u ON a.author_id = u.id' : '';
+            const sql = `SELECT a.* FROM articles a ${join} ${where} ORDER BY a.id ASC LIMIT ?`;
             params.push(limit + 1);
 
             const [rows] = await db.query<Article[]>(sql, params);
@@ -365,6 +352,7 @@ class ArticleRepository {
         try {
             const clauses: string[] = ["a.status = 'approved'"];
             const params: unknown[] = [];
+            let needsUserJoin = false;
 
             if (filter?.section) {
                 clauses.push('a.section = ?');
@@ -374,10 +362,12 @@ class ArticleRepository {
                 clauses.push('(a.title LIKE ? OR a.content LIKE ? OR a.section LIKE ? OR a.subsections LIKE ? OR u.name LIKE ?)');
                 const term = `%${filter.search}%`;
                 params.push(term, term, term, term, term);
+                needsUserJoin = true;
             }
 
             const where = `WHERE ${clauses.join(' AND ')}`;
-            const sql = `SELECT COUNT(*) as count FROM articles a JOIN users u ON a.author_id = u.id ${where}`;
+            const join = needsUserJoin ? 'JOIN users u ON a.author_id = u.id' : '';
+            const sql = `SELECT COUNT(*) as count FROM articles a ${join} ${where}`;
 
             const [rows] = await db.query<(RowDataPacket & { count: number })[]>(sql, params);
             return ok(rows[0].count);
@@ -417,11 +407,9 @@ class ArticleRepository {
 
             const where = `WHERE ${clauses.join(' AND ')}`;
             const sql = `
-                SELECT a.*, u.name AS author_name, u.bio AS author_bio,
-                       u.profession AS author_profession, u.profile_photo AS author_profile_photo
+                SELECT a.*
                 FROM articles a
                 JOIN article_views av ON a.id = av.article_id
-                JOIN users u ON a.author_id = u.id
                 ${where}
                 ORDER BY av.views DESC, a.id ASC
                 LIMIT ?`;
@@ -435,18 +423,6 @@ class ArticleRepository {
             return ok({ articles, hasMore });
         } catch (error) {
             logger.error('Error finding trending articles:', error);
-            return err(ERRORS.DATABASE_ERROR);
-        }
-    }
-
-    async countTrending(): Promise<Result<number, RequestError>> {
-        try {
-            const [rows] = await db.query<(RowDataPacket & { count: number })[]>(
-                "SELECT COUNT(*) as count FROM articles a JOIN article_views av ON a.id = av.article_id WHERE a.status = 'approved'",
-            );
-            return ok(rows[0].count);
-        } catch (error) {
-            logger.error('Error counting trending articles:', error);
             return err(ERRORS.DATABASE_ERROR);
         }
     }
@@ -471,9 +447,7 @@ class ArticleRepository {
             }
 
             const where = `WHERE ${clauses.join(' AND ')}`;
-            const sql = `SELECT a.*, u.name AS author_name, u.bio AS author_bio,
-                                u.profession AS author_profession, u.profile_photo AS author_profile_photo
-                         FROM articles a
+            const sql = `SELECT a.* FROM articles a
                          JOIN users u ON a.author_id = u.id
                          ${where} ORDER BY a.id ASC LIMIT ?`;
             params.push(limit + 1);

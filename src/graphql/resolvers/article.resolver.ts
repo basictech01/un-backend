@@ -38,6 +38,12 @@ interface ArticlesPaginationInput extends PaginationArgs {
 }
 
 export const articleResolvers = {
+    Article: {
+        author: async (parent: Article, _: unknown, context: GraphQLContext) => {
+            return context.loaders.userLoader.load(parent.author_id);
+        },
+    },
+
     Query: {
         article: async (_: unknown, { id }: { id: number }) => {
             const result = await articleRepository.findById(id);
@@ -131,7 +137,7 @@ export const articleResolvers = {
             const { articles, hasMore } = result.value;
             const connection = buildConnection<Article>(articles, hasMore);
 
-            const countResult = await articleRepository.countTrending();
+            const countResult = await articleRepository.countApproved();
             if (countResult.isErr()) throw toGraphQLError(countResult.error);
 
             return { ...connection, totalCount: countResult.value };
