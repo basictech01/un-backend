@@ -21,6 +21,7 @@
   "dependencies": {
     "@apollo/server": "^5.4.0",
     "@as-integrations/express5": "^1.0.0",
+    "@azure/storage-blob": "^12.30.0",
     "@graphql-tools/load-files": "^7.0.0",
     "@graphql-tools/merge": "^9.0.1",
     "bcrypt": "^6.0.0",

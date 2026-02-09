@@ -13,6 +13,7 @@ import { notFoundHandler, errorHandler } from './middleware/error.middleware.ts'
 import helmet from 'helmet';
 import { optionalAuth } from './middleware/auth.middleware.ts';
 import { createLoaders } from './graphql/loaders/user.loader.ts';
+import uploadRouter from './routes/upload.route.ts';
 
 async function startServer() {
     const { typeDefs, resolvers } = buildGraphQL();
@@ -58,6 +59,9 @@ async function startServer() {
             context: async ({ req }) => ({ req, user: req.user ?? null, loaders: createLoaders() }),
         })
     );
+
+    // REST routes
+    app.use('/api/upload', uploadRouter);
 
     await connectToDatabase();
 

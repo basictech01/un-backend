@@ -1,24 +1,4 @@
-import { Paginated } from '../types/pagination.ts';
-
-function isPaginated<T>(data: any): data is Paginated<T> {
-    return (
-        typeof data === "object" &&
-        data !== null &&
-        "data" in data &&
-        "pagination" in data
-    );
-}
-
-export function successResponse<T>(data: T | Paginated<T>, message?: string) {
-    if (isPaginated(data)) {
-        return {
-            success: true,
-            message: message || "Operation successful",
-            data: data.data,
-            pagination: data.pagination,
-            timestamp: new Date().toISOString()
-        };
-    }
+export function successResponse<T>(data: T, message?: string) {
     return {
         success: true,
         message: message || "Operation successful",

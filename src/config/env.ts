@@ -37,3 +37,10 @@ export const CORS_ORIGIN = process.env.CORS_ORIGIN;
 // Rate limiting
 export const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10);
 export const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '100', 10);
+
+// Azure Blob Storage
+export const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING!;
+export const AZURE_CONTAINER_NAME = process.env.AZURE_CONTAINER_NAME || 'images';
+
+// File upload secret for filename hashing
+export const FILE_CREATION_SECRET_KEY = process.env.FILE_CREATION_SECRET_KEY || 'un-backend-file-key';

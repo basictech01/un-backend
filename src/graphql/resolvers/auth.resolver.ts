@@ -82,7 +82,7 @@ export const authResolvers = {
             const user = result.value;
 
             if (!user.is_active) {
-                throw toGraphQLError(ERRORS.FORBIDDEN);
+                throw toGraphQLError(ERRORS.USER_ACCOUNT_DEACTIVATED);
             }
 
             const valid = await bcrypt.compare(password, user.password_hash);

@@ -4,6 +4,7 @@ import { loadFilesSync } from "@graphql-tools/load-files";
 import { mergeTypeDefs, mergeResolvers } from "@graphql-tools/merge";
 import { authResolvers } from "../resolvers/auth.resolver.ts";
 import { userResolvers } from "../resolvers/user.resolver.ts";
+import { articleResolvers } from "../resolvers/article.resolver.ts";
 
 const schemaPath = join(process.cwd(), "src/graphql/schema");
 
@@ -18,6 +19,7 @@ export function buildGraphQL() {
     const resolvers = mergeResolvers([
         authResolvers,
         userResolvers,
+        articleResolvers,
     ]);
 
     return { typeDefs, resolvers };

@@ -75,7 +75,7 @@ export const userResolvers = {
 
             const updateResult = await userRepository.updateProfile(tokenData.userId, input);
             if (updateResult.isErr()) {
-                throw toGraphQLError(updateResult.error);
+                throw toGraphQLError(ERRORS.USER_UPDATE_FAILED);
             }
 
             const userResult = await userRepository.findById(tokenData.userId);
@@ -112,7 +112,7 @@ export const userResolvers = {
 
             const updateResult = await userRepository.updateProfile(id, input);
             if (updateResult.isErr()) {
-                throw toGraphQLError(updateResult.error);
+                throw toGraphQLError(ERRORS.USER_UPDATE_FAILED);
             }
 
             const updatedResult = await userRepository.findById(id);
@@ -128,7 +128,12 @@ export const userResolvers = {
             { id, isActive }: { id: number; isActive: boolean },
             context: GraphQLContext
         ) => {
-            requireAdmin(context);
+            const adminData = requireAdmin(context);
+
+            // Prevent admin from deactivating themselves
+            if (adminData.userId === id) {
+                throw toGraphQLError(ERRORS.USER_SELF_DEACTIVATE);
+            }
 
             // Verify target exists
             const targetResult = await userRepository.findById(id);
@@ -146,7 +151,7 @@ export const userResolvers = {
 
             const updateResult = await userRepository.updateStatus(id, isActive);
             if (updateResult.isErr()) {
-                throw toGraphQLError(updateResult.error);
+                throw toGraphQLError(ERRORS.USER_STATUS_TOGGLE_FAILED);
             }
 
             const updatedResult = await userRepository.findById(id);

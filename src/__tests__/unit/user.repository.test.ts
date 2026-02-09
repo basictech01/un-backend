@@ -4,7 +4,6 @@ import { GenericContainer } from 'testcontainers';
 
 jest.setTimeout(120000);
 
-// --- Real DB pool that points to testcontainer ---
 
 let mockPool: any;
 let container: any;
@@ -28,6 +27,9 @@ jest.unstable_mockModule('../../config/env.ts', () => ({
     JWT_REFRESH_EXPIRES_IN: '7d',
     RATE_LIMIT_WINDOW_MS: 900000,
     RATE_LIMIT_MAX: 1000,
+    AZURE_STORAGE_CONNECTION_STRING: '',
+    AZURE_CONTAINER_NAME: 'test-images',
+    FILE_CREATION_SECRET_KEY: 'test-secret',
     DB_HOST: 'localhost',
     DB_USER: 'root',
     DB_PASSWORD: '',

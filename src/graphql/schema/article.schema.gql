@@ -1,0 +1,85 @@
+enum ArticleStatus {
+    DRAFT
+    PENDING
+    APPROVED
+    REJECTED
+}
+
+input CreateArticleInput {
+    title: String!
+    content: String!
+    excerpt: String
+    section: String!
+    subsections: [String!]!
+    coverImage: String
+    status: ArticleStatus
+}
+
+input UpdateArticleInput {
+    title: String
+    content: String
+    excerpt: String
+    section: String
+    subsections: [String!]
+    coverImage: String
+}
+
+input ArticleFilter {
+    status: ArticleStatus
+    section: String
+    authorId: Int
+    search: String
+}
+
+type Article {
+    id: Int!
+    author_id: Int!
+    title: String!
+    excerpt: String
+    content: String!
+    section: String!
+    subsections: JSON!
+    cover_image: String
+    status: String!
+    rejection_reason: String
+    published_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
+    author_name: String
+    author_bio: String
+    author_profession: String
+    author_profile_photo: String
+}
+
+type ArticleEdge {
+    cursor: String!
+    node: Article!
+}
+
+type ArticleConnection {
+    edges: [ArticleEdge!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+}
+
+extend type Query {
+    article(id: Int!): Article!
+    articles(first: Int, after: String, filter: ArticleFilter): ArticleConnection!
+    approvedArticles(first: Int, after: String, filter: ArticleFilter): ArticleConnection!
+    myArticles(first: Int, after: String): ArticleConnection!
+    pendingArticles(first: Int, after: String): ArticleConnection!
+    trendingArticles(first: Int, after: String): ArticleConnection!
+}
+
+extend type Mutation {
+    createArticle(input: CreateArticleInput!): Article!
+    updateArticle(id: Int!, input: UpdateArticleInput!): Article!
+    submitArticle(id: Int!): Article!
+    approveArticle(id: Int!): Article!
+    rejectArticle(id: Int!, reason: String!): Article!
+    resubmitArticle(id: Int!): Article!
+    deleteArticle(id: Int!): Article!
+    bulkApproveArticles(ids: [Int!]!): Boolean!
+    bulkDeleteArticles(ids: [Int!]!): Boolean!
+    incrementViews(id: Int!): Boolean!
+}
