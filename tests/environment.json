@@ -1,0 +1,41 @@
+{
+  "id": "un-backend-local",
+  "name": "Un-Backend Local",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "enabled": true
+    },
+    {
+      "key": "graphql_endpoint",
+      "value": "http://localhost:3000/graphql",
+      "enabled": true
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "author_token",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "admin_id",
+      "value": "1",
+      "enabled": true
+    },
+    {
+      "key": "author_id",
+      "value": "2",
+      "enabled": true
+    },
+    {
+      "key": "article_id",
+      "value": "",
+      "enabled": true
+    }
+  ]
+}

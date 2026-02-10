@@ -4,7 +4,6 @@ import { GenericContainer } from 'testcontainers';
 
 jest.setTimeout(120000);
 
-// --- Real DB pool that points to testcontainer ---
 
 let mockPool: any;
 let container: any;
@@ -13,12 +12,12 @@ const poolProxy = new Proxy({} as any, {
     get(_target, prop) { return mockPool[prop]; },
 });
 
-jest.unstable_mockModule('../../database/db.ts', () => ({
+jest.unstable_mockModule('../database/db.ts', () => ({
     db: poolProxy,
     connectToDatabase: jest.fn(),
 }));
 
-jest.unstable_mockModule('../../config/env.ts', () => ({
+jest.unstable_mockModule('../config/env.ts', () => ({
     PORT: '4000',
     NODE_ENV: 'test',
     CORS_ORIGIN: '*',
@@ -28,6 +27,9 @@ jest.unstable_mockModule('../../config/env.ts', () => ({
     JWT_REFRESH_EXPIRES_IN: '7d',
     RATE_LIMIT_WINDOW_MS: 900000,
     RATE_LIMIT_MAX: 1000,
+    AZURE_STORAGE_CONNECTION_STRING: '',
+    AZURE_CONTAINER_NAME: 'test-images',
+    FILE_CREATION_SECRET_KEY: 'test-secret',
     DB_HOST: 'localhost',
     DB_USER: 'root',
     DB_PASSWORD: '',
@@ -35,7 +37,7 @@ jest.unstable_mockModule('../../config/env.ts', () => ({
     DB_PORT: 3306,
 }));
 
-jest.unstable_mockModule('../../utils/logger.ts', () => ({
+jest.unstable_mockModule('../utils/logger.ts', () => ({
     default: () => ({
         info: jest.fn(),
         warn: jest.fn(),
@@ -44,7 +46,7 @@ jest.unstable_mockModule('../../utils/logger.ts', () => ({
     }),
 }));
 
-const { userRepository } = await import('../../repositories/user.repository.ts');
+const { userRepository } = await import('./user.repository.ts');
 
 // --- DB setup/teardown helpers ---
 

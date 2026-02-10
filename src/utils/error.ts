@@ -64,10 +64,65 @@ export const ERRORS = {
     // User Management Errors (3xxxx)
     USER_NOT_FOUND: new RequestError("User not found", 30001, 404),
     USER_CREATION_FAILED: new RequestError("Failed to create user", 30002, 500),
-    USER_UPDATE_FAILED: new RequestError("Failed to update user", 30003, 500),
+    USER_UPDATE_FAILED: new RequestError("Failed to update user profile", 30003, 500),
     DUPLICATE_EMAIL: new RequestError("Email already exists", 30004, 409),
     USER_NOT_AUTHOR: new RequestError("User is not an author", 30006, 400),
     PAGINATION_LIMIT_EXCEEDED: new RequestError("Pagination limit must be between 1 and 100", 30007, 400),
+    USER_ACCOUNT_DEACTIVATED: new RequestError("Your account has been deactivated. Please contact an administrator.", 30008, 403),
+    USER_STATUS_TOGGLE_FAILED: new RequestError("Failed to update user active status", 30009, 500),
+    USER_PASSWORD_UPDATE_FAILED: new RequestError("Failed to update password", 30010, 500),
+    USER_SELF_DEACTIVATE: new RequestError("You cannot deactivate your own account", 30011, 400),
+    USER_NAME_REQUIRED: new RequestError("User name is required", 30012, 400),
+    USER_EMAIL_REQUIRED: new RequestError("User email is required", 30013, 400),
+    USER_PASSWORD_REQUIRED: new RequestError("Password is required", 30014, 400),
+    USER_PASSWORD_TOO_SHORT: new RequestError("Password must be at least 6 characters", 30015, 400),
+    USER_INVALID_ROLE: new RequestError("Invalid user role", 30016, 400),
+
+    // Article/Content Management Errors (4xxxx)
+    ARTICLE_NOT_FOUND: new RequestError("Article not found", 40001, 404),
+    ARTICLE_NOT_OWNED: new RequestError("You do not own this article", 40002, 403),
+    REJECTION_REASON_REQUIRED: new RequestError("Rejection reason is required", 40004, 400),
+    INVALID_SECTION: new RequestError("Invalid section", 40005, 400),
+    INVALID_SUBSECTION: new RequestError("Invalid subsection for this section", 40006, 400),
+
+    // Status transition errors — specific per operation
+    ARTICLE_NOT_PENDING: new RequestError("Article is not pending approval", 40007, 400),
+    ARTICLE_NOT_DRAFT: new RequestError("Article must be in draft status to submit", 40008, 400),
+    ARTICLE_NOT_REJECTED: new RequestError("Article must be rejected to resubmit", 40009, 400),
+
+    // Edit/update permission errors — tells exactly what failed
+    ARTICLE_EDIT_NOT_ALLOWED: new RequestError("Article can only be edited in draft or rejected status", 40010, 400),
+    ARTICLE_DELETE_NOT_DRAFT: new RequestError("Authors can only delete their own draft articles", 40011, 400),
+    ARTICLE_ALREADY_APPROVED: new RequestError("Article is already approved", 40012, 400),
+    ARTICLE_ALREADY_PENDING: new RequestError("Article is already pending review", 40013, 400),
+    ARTICLE_ALREADY_REJECTED: new RequestError("Article is already rejected", 40014, 400),
+
+    // CRUD failure errors — DB-level operation failures
+    ARTICLE_CREATE_FAILED: new RequestError("Failed to create article", 40020, 500),
+    ARTICLE_UPDATE_FAILED: new RequestError("Failed to update article", 40021, 500),
+    ARTICLE_DELETE_FAILED: new RequestError("Failed to delete article", 40022, 500),
+    ARTICLE_STATUS_UPDATE_FAILED: new RequestError("Failed to update article status", 40023, 500),
+    ARTICLE_BULK_APPROVE_FAILED: new RequestError("Failed to bulk approve articles", 40024, 500),
+    ARTICLE_BULK_DELETE_FAILED: new RequestError("Failed to bulk delete articles", 40025, 500),
+
+    // Validation errors
+    ARTICLE_TITLE_REQUIRED: new RequestError("Article title is required", 40030, 400),
+    ARTICLE_CONTENT_REQUIRED: new RequestError("Article content is required", 40031, 400),
+    ARTICLE_SECTION_REQUIRED: new RequestError("Article section is required", 40032, 400),
+    ARTICLE_SUBSECTIONS_REQUIRED: new RequestError("At least one subsection is required", 40033, 400),
+    ARTICLE_IDS_REQUIRED: new RequestError("At least one article ID is required", 40034, 400),
+
+    // View tracking
+    ARTICLE_VIEW_INCREMENT_FAILED: new RequestError("Failed to record article view", 40040, 500),
+
+    // File/Image Upload Errors (5xxxx)
+    FILE_NOT_FOUND: new RequestError("No file uploaded", 50001, 400),
+    FILE_UPLOAD_FAILED: new RequestError("File upload failed", 50002, 500),
+    INVALID_FILE_TYPE: new RequestError("Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed", 50003, 400),
+    FILE_TOO_LARGE: new RequestError("File size exceeds the 5MB limit", 50004, 400),
+    AZURE_UPLOAD_FAILED: new RequestError("Failed to upload image to storage", 50005, 500),
+    AZURE_DELETE_FAILED: new RequestError("Failed to delete image from storage", 50006, 500),
+    AZURE_NOT_CONFIGURED: new RequestError("Image storage is not configured", 50007, 500),
 } as const;
 
 // Convert RequestError to GraphQLError for resolver/context usage

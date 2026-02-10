@@ -1,0 +1,22 @@
+# Test reports (generated after running tests)
+test-report.html
+test-report.json
+*.html
+
+# Environment files with tokens (DO NOT COMMIT)
+environment.local.json
+environment.staging.json
+environment.production.json
+
+# Node modules (if running tests locally)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

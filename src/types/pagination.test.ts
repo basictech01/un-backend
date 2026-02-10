@@ -1,4 +1,4 @@
-import { encodeCursor, decodeCursor, buildConnection } from '../../types/pagination.ts';
+import { encodeCursor, decodeCursor, buildConnection } from './pagination.ts';
 
 describe('Pagination Helpers', () => {
     describe('encodeCursor / decodeCursor', () => {
