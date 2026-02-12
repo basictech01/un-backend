@@ -45,20 +45,34 @@ export const articleResolvers = {
     },
 
     Query: {
-        article: async (_: unknown, { id }: { id: number }) => {
+        article: async (_: unknown, { id }: { id: number }, context: GraphQLContext) => {
             const result = await articleRepository.findById(id);
             if (result.isErr()) throw toGraphQLError(result.error);
             if (!result.value) throw toGraphQLError(ERRORS.ARTICLE_NOT_FOUND);
 
-            // Only return approved articles publicly
-            if (result.value.status !== 'approved') {
+            const article = result.value;
+
+            // Authorization rules:
+            // 1. Approved articles are visible to everyone (public)
+            // 2. Admins can see all articles regardless of status
+            // 3. Authors can see only their own articles regardless of status
+            // 4. Everyone else can only see approved articles
+
+            const isApproved = article.status === 'approved';
+            const isAdmin = context.user?.is_admin === true;
+            const isAuthor = context.user?.userId === article.author_id;
+
+            // Allow access if article is approved, user is admin, or user is the author
+            if (!isApproved && !isAdmin && !isAuthor) {
                 throw toGraphQLError(ERRORS.ARTICLE_NOT_FOUND);
             }
 
-            // Increment views (fire-and-forget)
-            articleRepository.incrementViews(id);
+            // Increment views only for approved articles (fire-and-forget)
+            if (isApproved) {
+                articleRepository.incrementViews(id);
+            }
 
-            return result.value;
+            return article;
         },
 
         articles: async (_: unknown, args: ArticlesPaginationInput, context: GraphQLContext) => {
