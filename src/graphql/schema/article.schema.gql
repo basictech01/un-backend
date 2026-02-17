@@ -63,7 +63,7 @@ extend type Query {
     article(id: Int!): Article!
     articles(first: Int, after: String, filter: ArticleFilter): ArticleConnection!
     approvedArticles(first: Int, after: String, filter: ArticleFilter): ArticleConnection!
-    myArticles(first: Int, after: String): ArticleConnection!
+    myArticles(first: Int, after: String, status: ArticleStatus): ArticleConnection!
     pendingArticles(first: Int, after: String): ArticleConnection!
     trendingArticles(first: Int, after: String): ArticleConnection!
 }

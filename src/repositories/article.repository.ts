@@ -221,11 +221,17 @@ class ArticleRepository {
     async findByAuthorPaginated(
         authorId: number,
         pagination: PaginationArgs,
+        status?: string,
     ): Promise<Result<{ articles: Article[]; hasMore: boolean }, RequestError>> {
         try {
             const limit = pagination.first || 10;
             const clauses: string[] = ['a.author_id = ?'];
             const params: unknown[] = [authorId];
+
+            if (status) {
+                clauses.push('a.status = ?');
+                params.push(status);
+            }
 
             if (pagination.after) {
                 const cursorId = decodeCursor(pagination.after);
@@ -249,11 +255,20 @@ class ArticleRepository {
         }
     }
 
-    async countByAuthor(authorId: number): Promise<Result<number, RequestError>> {
+    async countByAuthor(authorId: number, status?: string): Promise<Result<number, RequestError>> {
         try {
+            const clauses = ['author_id = ?'];
+            const params: unknown[] = [authorId];
+
+            if (status) {
+                clauses.push('status = ?');
+                params.push(status);
+            }
+
+            const where = `WHERE ${clauses.join(' AND ')}`;
             const [rows] = await db.query<(RowDataPacket & { count: number })[]>(
-                'SELECT COUNT(*) as count FROM articles WHERE author_id = ?',
-                [authorId],
+                `SELECT COUNT(*) as count FROM articles ${where}`,
+                params,
             );
             return ok(rows[0].count);
         } catch (error) {

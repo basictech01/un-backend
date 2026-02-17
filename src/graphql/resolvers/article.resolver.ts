@@ -37,6 +37,10 @@ interface ArticlesPaginationInput extends PaginationArgs {
     filter?: ArticleFilter;
 }
 
+interface MyArticlesArgs extends PaginationArgs {
+    status?: string;
+}
+
 export const articleResolvers = {
     Article: {
         author: async (parent: Article, _: unknown, context: GraphQLContext) => {
@@ -110,17 +114,18 @@ export const articleResolvers = {
             return { ...connection, totalCount: countResult.value };
         },
 
-        myArticles: async (_: unknown, args: PaginationArgs, context: GraphQLContext) => {
+        myArticles: async (_: unknown, args: MyArticlesArgs, context: GraphQLContext) => {
             const tokenData = requireAuth(context);
             const pagination = validatePaginationArgs(args);
+            const status = mapStatusEnum(args.status);
 
-            const result = await articleRepository.findByAuthorPaginated(tokenData.userId, pagination);
+            const result = await articleRepository.findByAuthorPaginated(tokenData.userId, pagination, status);
             if (result.isErr()) throw toGraphQLError(result.error);
 
             const { articles, hasMore } = result.value;
             const connection = buildConnection<Article>(articles, hasMore);
 
-            const countResult = await articleRepository.countByAuthor(tokenData.userId);
+            const countResult = await articleRepository.countByAuthor(tokenData.userId, status);
             if (countResult.isErr()) throw toGraphQLError(countResult.error);
 
             return { ...connection, totalCount: countResult.value };

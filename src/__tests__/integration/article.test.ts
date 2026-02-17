@@ -741,8 +741,8 @@ describe('Article Management Integration', () => {
     // ========================================
     describe('Query: myArticles', () => {
         const myArticlesQuery = `
-            query($first: Int) {
-                myArticles(first: $first) {
+            query($first: Int, $status: ArticleStatus) {
+                myArticles(first: $first, status: $status) {
                     edges { node { id title status } }
                     totalCount
                 }
@@ -751,7 +751,7 @@ describe('Article Management Integration', () => {
 
         beforeEach(async () => { await resetTables(); });
 
-        it('should return all statuses for current user', async () => {
+        it('should return all statuses for current user when no filter', async () => {
             const res = await gqlAuth(author1Token, myArticlesQuery, { first: 10 });
 
             expect(res.status).toBe(200);
@@ -759,6 +759,56 @@ describe('Article Management Integration', () => {
             // Author1 (id=2) has articles 1 (draft), 2 (pending), 3 (approved), 5 (rejected)
             expect(res.body.data.myArticles.edges).toHaveLength(4);
             expect(res.body.data.myArticles.totalCount).toBe(4);
+        });
+
+        it('should filter by DRAFT status', async () => {
+            const res = await gqlAuth(author1Token, myArticlesQuery, { first: 10, status: 'DRAFT' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.errors).toBeUndefined();
+            expect(res.body.data.myArticles.edges).toHaveLength(1);
+            expect(res.body.data.myArticles.edges[0].node.status).toBe('draft');
+            expect(res.body.data.myArticles.totalCount).toBe(1);
+        });
+
+        it('should filter by PENDING status', async () => {
+            const res = await gqlAuth(author1Token, myArticlesQuery, { first: 10, status: 'PENDING' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.errors).toBeUndefined();
+            expect(res.body.data.myArticles.edges).toHaveLength(1);
+            expect(res.body.data.myArticles.edges[0].node.status).toBe('pending');
+            expect(res.body.data.myArticles.totalCount).toBe(1);
+        });
+
+        it('should filter by APPROVED status', async () => {
+            const res = await gqlAuth(author1Token, myArticlesQuery, { first: 10, status: 'APPROVED' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.errors).toBeUndefined();
+            expect(res.body.data.myArticles.edges).toHaveLength(1);
+            expect(res.body.data.myArticles.edges[0].node.status).toBe('approved');
+            expect(res.body.data.myArticles.totalCount).toBe(1);
+        });
+
+        it('should filter by REJECTED status', async () => {
+            const res = await gqlAuth(author1Token, myArticlesQuery, { first: 10, status: 'REJECTED' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.errors).toBeUndefined();
+            expect(res.body.data.myArticles.edges).toHaveLength(1);
+            expect(res.body.data.myArticles.edges[0].node.status).toBe('rejected');
+            expect(res.body.data.myArticles.totalCount).toBe(1);
+        });
+
+        it('should only return articles for the authenticated user', async () => {
+            // Author2 has article 4 (approved) only
+            const res = await gqlAuth(author2Token, myArticlesQuery, { first: 10 });
+
+            expect(res.status).toBe(200);
+            expect(res.body.errors).toBeUndefined();
+            expect(res.body.data.myArticles.edges).toHaveLength(1);
+            expect(res.body.data.myArticles.totalCount).toBe(1);
         });
 
         it('should reject unauthenticated', async () => {
