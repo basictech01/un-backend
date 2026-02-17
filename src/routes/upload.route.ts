@@ -26,28 +26,51 @@ function requireAuthRest(req: Request, res: Response, next: NextFunction) {
     }
 }
 
+// Multer middleware wrapper to handle MulterError explicitly
+function uploadMiddleware(req: Request, res: Response, next: NextFunction) {
+    upload.single('image')(req, res, (err: unknown) => {
+        if (err instanceof multer.MulterError) {
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                res.status(400).json(errorResponse(ERRORS.FILE_TOO_LARGE.message, ERRORS.FILE_TOO_LARGE.code));
+            } else {
+                res.status(400).json(errorResponse(err.message, 50000));
+            }
+            return;
+        }
+        if (err) {
+            next(err);
+            return;
+        }
+        next();
+    });
+}
+
 router.post(
     '/',
     requireAuthRest,
-    upload.single('image'),
-    async (req: Request, res: Response) => {
-        // Validate the file
-        const validation = validateImageFile(req.file);
-        if (validation.isErr()) {
-            const e = validation.error;
-            res.status(e.statusCode).json(errorResponse(e.message, e.code));
-            return;
-        }
+    uploadMiddleware,
+    async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            // Validate the file
+            const validation = validateImageFile(req.file);
+            if (validation.isErr()) {
+                const e = validation.error;
+                res.status(e.statusCode).json(errorResponse(e.message, e.code));
+                return;
+            }
 
-        // Upload to Azure Blob
-        const result = await uploadImageToBlob(req.file!.buffer, req.file!.mimetype);
-        if (result.isErr()) {
-            const e = result.error;
-            res.status(e.statusCode).json(errorResponse(e.message, e.code));
-            return;
-        }
+            // Upload to Azure Blob
+            const result = await uploadImageToBlob(req.file!.buffer, req.file!.mimetype);
+            if (result.isErr()) {
+                const e = result.error;
+                res.status(e.statusCode).json(errorResponse(e.message, e.code));
+                return;
+            }
 
-        res.json(successResponse({ url: result.value }, 'Image uploaded successfully'));
+            res.json(successResponse({ url: result.value }, 'Image uploaded successfully'));
+        } catch (error) {
+            next(error);
+        }
     },
 );
 
