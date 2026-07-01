@@ -15,7 +15,7 @@ cd ..
 npm run dev
 ```
 
-Wait until you see: `Server running on port 3000`
+Wait until you see: `Server running on port 4001`
 
 ## Step 3: Run Tests
 
@@ -162,8 +162,8 @@ Check `environment.json`:
 
 ```json
 {
-  "base_url": "http://localhost:3000",
-  "graphql_endpoint": "http://localhost:3000/graphql"
+  "base_url": "http://localhost:4001",
+  "graphql_endpoint": "http://localhost:4001/graphql"
 }
 ```
 

@@ -37,7 +37,7 @@ npm run dev
 npm start
 ```
 
-Server should be at: `http://localhost:3000`
+Server should be at: `http://localhost:4001`
 
 ### 3. Run All Tests
 
@@ -243,8 +243,8 @@ Edit `environment.json` to configure:
 
 ```json
 {
-  "base_url": "http://localhost:3000",
-  "graphql_endpoint": "http://localhost:3000/graphql",
+  "base_url": "http://localhost:4001",
+  "graphql_endpoint": "http://localhost:4001/graphql",
   "author1_token": "",        // Auto-filled by Author 1 signup
   "author1_refresh_token": "", // Auto-filled by Author 1 signup
   "author1_id": "",           // Auto-filled by Author 1 signup
@@ -337,7 +337,7 @@ npm install -g newman
 ```bash
 cd ..
 npm run dev
-# Wait for "Server running on port 3000"
+# Wait for "Server running on port 4001"
 ```
 
 ### "Unauthorized access"

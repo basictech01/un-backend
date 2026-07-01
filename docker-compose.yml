@@ -41,10 +41,11 @@ services:
       mysql_un:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "4001:4001"
     env_file:
       - ./.env
     environment:
+      PORT: 4001
       NODE_NO_WARNINGS: "1"
       # Override DB host/port/name for container environment
       DB_HOST: mysql_un

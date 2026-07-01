@@ -23,7 +23,7 @@ async function startServer() {
 
     app.use(cors({
         origin: CORS_ORIGIN,
-        credentials: true
+        credentials: false
     }));
     app.use(limiter);
     app.use(express.json({ limit: '10mb' }));

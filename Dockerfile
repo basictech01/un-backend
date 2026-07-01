@@ -13,7 +13,7 @@ RUN npm ci
 COPY . .
 
 # Expose API port
-EXPOSE 3000
+EXPOSE 4001
 
 # Dev mode (nodemon + ts-node)
 CMD ["npm", "run", "dev"]

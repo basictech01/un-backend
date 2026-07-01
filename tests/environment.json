@@ -4,12 +4,12 @@
   "values": [
     {
       "key": "base_url",
-      "value": "http://localhost:3000",
+      "value": "http://localhost:4001",
       "enabled": true
     },
     {
       "key": "graphql_endpoint",
-      "value": "http://localhost:3000/graphql",
+      "value": "http://localhost:4001/graphql",
       "enabled": true
     },
     {
